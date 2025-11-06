@@ -1,0 +1,192 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Get Prompts API",
+  "description": "Retrieve a paginated list of prompts with optional search and filtering",
+  "method": "GET",
+  "path": "/api/prompts",
+  "parameters": {
+    "query": {
+      "type": "object",
+      "properties": {
+        "search": {
+          "type": "string",
+          "description": "Search term to match in title, description, or content",
+          "maxLength": 100
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "maxLength": 50
+          },
+          "description": "Filter by tags (prompts must have all specified tags)"
+        },
+        "page": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 1,
+          "description": "Page number for pagination"
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100,
+          "default": 20,
+          "description": "Number of prompts per page"
+        },
+        "sort_by": {
+          "type": "string",
+          "enum": ["created_at", "updated_at", "title"],
+          "default": "updated_at",
+          "description": "Field to sort by"
+        },
+        "sort_order": {
+          "type": "string",
+          "enum": ["asc", "desc"],
+          "default": "desc",
+          "description": "Sort order"
+        }
+      }
+    }
+  },
+  "responses": {
+    "200": {
+      "description": "Successful retrieval of prompts",
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "prompts": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid",
+                      "description": "Unique identifier for the prompt"
+                    },
+                    "title": {
+                      "type": "string",
+                      "maxLength": 255,
+                      "description": "Prompt title"
+                    },
+                    "description": {
+                      "type": "string",
+                      "description": "Optional prompt description"
+                    },
+                    "tags": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "maxLength": 50
+                      },
+                      "description": "Array of tags"
+                    },
+                    "latest_version": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "version_number": {
+                          "type": "integer"
+                        },
+                        "content_preview": {
+                          "type": "string",
+                          "maxLength": 200,
+                          "description": "First 200 characters of content"
+                        },
+                        "created_at": {
+                          "type": "string",
+                          "format": "date-time"
+                        }
+                      }
+                    },
+                    "version_count": {
+                      "type": "integer",
+                      "description": "Total number of versions for this prompt"
+                    },
+                    "created_at": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "updated_at": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": ["id", "title", "tags", "version_count", "created_at", "updated_at"]
+                }
+              },
+              "pagination": {
+                "type": "object",
+                "properties": {
+                  "page": {
+                    "type": "integer"
+                  },
+                  "limit": {
+                    "type": "integer"
+                  },
+                  "total": {
+                    "type": "integer",
+                    "description": "Total number of prompts matching the query"
+                  },
+                  "total_pages": {
+                    "type": "integer",
+                    "description": "Total number of pages"
+                  },
+                  "has_next": {
+                    "type": "boolean"
+                  },
+                  "has_prev": {
+                    "type": "boolean"
+                  }
+                },
+                "required": ["page", "limit", "total", "total_pages", "has_next", "has_prev"]
+              }
+            },
+            "required": ["prompts", "pagination"]
+          }
+        }
+      }
+    },
+    "400": {
+      "description": "Bad request - invalid parameters",
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "error": {
+                "type": "string"
+              },
+              "details": {
+                "type": "object"
+              }
+            },
+            "required": ["error"]
+          }
+        }
+      }
+    },
+    "500": {
+      "description": "Internal server error",
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "error": {
+                "type": "string"
+              }
+            },
+            "required": ["error"]
+          }
+        }
+      }
+    }
+  }
+}

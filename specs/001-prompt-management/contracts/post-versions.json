@@ -1,0 +1,141 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Create Prompt Version API",
+  "description": "Create a new version of an existing prompt",
+  "method": "POST",
+  "path": "/api/prompts/{prompt_id}/versions",
+  "parameters": {
+    "path": {
+      "prompt_id": {
+        "type": "string",
+        "format": "uuid",
+        "description": "ID of the prompt to create a version for"
+      }
+    }
+  },
+  "requestBody": {
+    "required": true,
+    "content": {
+      "application/json": {
+        "schema": {
+          "type": "object",
+          "properties": {
+            "content": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 50000,
+              "description": "The prompt content"
+            },
+            "change_notes": {
+              "type": "string",
+              "maxLength": 1000,
+              "description": "Optional notes describing what changed in this version"
+            },
+            "based_on_version_id": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Optional ID of the version this is based on"
+            }
+          },
+          "required": ["content"]
+        }
+      }
+    }
+  },
+  "responses": {
+    "201": {
+      "description": "Prompt version created successfully",
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid",
+                "description": "Unique identifier for the new version"
+              },
+              "prompt_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "version_number": {
+                "type": "integer",
+                "description": "Sequential version number"
+              },
+              "content": {
+                "type": "string",
+                "description": "The prompt content"
+              },
+              "change_notes": {
+                "type": "string",
+                "description": "Change notes for this version"
+              },
+              "created_at": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "based_on_version_id": {
+                "type": "string",
+                "format": "uuid",
+                "description": "ID of the version this was based on, if any"
+              }
+            },
+            "required": ["id", "prompt_id", "version_number", "content", "created_at"]
+          }
+        }
+      }
+    },
+    "400": {
+      "description": "Bad request - invalid data or prompt not found",
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "error": {
+                "type": "string"
+              },
+              "details": {
+                "type": "object"
+              }
+            },
+            "required": ["error"]
+          }
+        }
+      }
+    },
+    "404": {
+      "description": "Prompt not found",
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "error": {
+                "type": "string"
+              }
+            },
+            "required": ["error"]
+          }
+        }
+      }
+    },
+    "500": {
+      "description": "Internal server error",
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "error": {
+                "type": "string"
+              }
+            },
+            "required": ["error"]
+          }
+        }
+      }
+    }
+  }
+}
