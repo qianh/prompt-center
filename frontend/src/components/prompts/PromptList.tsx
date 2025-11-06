@@ -129,9 +129,9 @@ export const PromptList: React.FC<PromptListProps> = ({
                 >
                   <div className="flex items-center gap-2 mb-2">
                     <CardTitle className="text-lg">{prompt.title}</CardTitle>
-                    {prompt.latest_version > 0 && (
+                    {prompt.latest_version && (
                       <span className="text-xs bg-purple-100 text-purple-800 px-2 py-0.5 rounded font-medium">
-                        v{prompt.latest_version}.0
+                        v{prompt.latest_version}
                       </span>
                     )}
                   </div>

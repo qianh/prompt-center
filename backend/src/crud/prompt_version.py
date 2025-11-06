@@ -43,15 +43,36 @@ class PromptVersionCRUD:
             .all()
         )
 
-    def get_next_version_number(self, db: Session, prompt_id: str) -> int:
+    def get_next_version_number(self, db: Session, prompt_id: str) -> str:
         """Get the next version number for a prompt."""
-        max_version = (
-            db.query(PromptVersion)
+        versions = (
+            db.query(PromptVersion.version_number)
             .filter(PromptVersion.prompt_id == prompt_id)
-            .order_by(PromptVersion.version_number.desc())
-            .first()
+            .all()
         )
-        return (max_version.version_number + 1) if max_version else 1
+
+        if not versions:
+            return "1.0"
+
+        # Parse all version numbers and find the maximum
+        max_num = 0.0
+        for (version_str,) in versions:
+            try:
+                # Try to parse as float
+                num = float(version_str)
+                if num > max_num:
+                    max_num = num
+            except (ValueError, TypeError):
+                # If not a valid number, skip it
+                continue
+
+        # Increment by 1.0
+        next_version = max_num + 1.0
+        # Format: if it's a whole number, return "X.0", otherwise keep decimal
+        if next_version.is_integer():
+            return f"{int(next_version)}.0"
+        else:
+            return str(next_version)
 
     def create(self, db: Session, *, obj_in: PromptVersionCreate, prompt_id: str) -> PromptVersion:
         """Create a new prompt version."""
@@ -110,8 +131,8 @@ class PromptVersionCRUD:
         db: Session,
         *,
         prompt_id: str,
-        version_a: int,
-        version_b: int
+        version_a: str,
+        version_b: str
     ) -> Optional[dict]:
         """Compare two versions of a prompt."""
         version_a_obj = (

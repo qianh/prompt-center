@@ -15,7 +15,7 @@ class PromptVersionBase(BaseModel):
 
 class PromptVersionCreate(PromptVersionBase):
     """Schema for creating a prompt version."""
-    version_number: Optional[int] = None  # If not provided, auto-generate
+    version_number: Optional[str] = None  # If not provided, auto-generate (supports decimal like "2.5")
 
 
 class PromptVersionUpdate(BaseModel):
@@ -28,7 +28,7 @@ class PromptVersionResponse(PromptVersionBase):
     """Schema for prompt version response."""
     id: str
     prompt_id: str
-    version_number: int
+    version_number: str  # String to support decimal versions like "2.5"
     created_at: datetime
     updated_at: datetime
 

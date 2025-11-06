@@ -22,6 +22,29 @@ from src.schemas import (
 router = APIRouter(prefix="/api/v1", tags=["api"])
 
 
+# Helper functions
+def get_latest_version_number(versions: list) -> str:
+    """Get the latest version number from a list of versions.
+    Handles string version numbers by parsing them as floats for comparison.
+    """
+    if not versions:
+        return "0.0"
+
+    max_version = "0.0"
+    max_num = 0.0
+
+    for v in versions:
+        try:
+            num = float(v.version_number)
+            if num > max_num:
+                max_num = num
+                max_version = v.version_number
+        except (ValueError, TypeError, AttributeError):
+            continue
+
+    return max_version
+
+
 # Request models
 class LLMTestRequest(PydanticBaseModel):
     llm_config_id: str
@@ -69,7 +92,7 @@ async def get_prompts(
     for prompt in prompts:
         # Get version info
         versions = prompt_version_crud.get_versions(db, prompt.id)
-        latest_version = max([v.version_number for v in versions], default=0)
+        latest_version = get_latest_version_number(versions)
 
         items.append(PromptResponse(
             id=prompt.id,
@@ -104,7 +127,7 @@ async def create_prompt(
 
     # Get version info
     versions = prompt_version_crud.get_versions(db, prompt.id)
-    latest_version = max([v.version_number for v in versions], default=0)
+    latest_version = get_latest_version_number(versions)
 
     return PromptResponse(
         id=prompt.id,
@@ -131,7 +154,7 @@ async def get_prompt_by_id(
 
     # Get version info
     versions = prompt_version_crud.get_versions(db, prompt.id)
-    latest_version = max([v.version_number for v in versions], default=0)
+    latest_version = get_latest_version_number(versions)
 
     return PromptResponse(
         id=prompt.id,
@@ -161,7 +184,7 @@ async def update_prompt(
 
     # Get version info
     versions = prompt_version_crud.get_versions(db, updated_prompt.id)
-    latest_version = max([v.version_number for v in versions], default=0)
+    latest_version = get_latest_version_number(versions)
 
     return PromptResponse(
         id=updated_prompt.id,
@@ -241,8 +264,8 @@ async def get_latest_prompt_version(
 @router.get("/prompts/{prompt_id}/versions/compare/detailed")
 async def compare_prompt_versions_detailed(
     prompt_id: str,
-    version_a: int = Query(..., description="First version number"),
-    version_b: int = Query(..., description="Second version number"),
+    version_a: str = Query(..., description="First version number"),
+    version_b: str = Query(..., description="Second version number"),
     include_diff: bool = Query(True, description="Include detailed diff"),
     db: Session = Depends(get_db)
 ):
@@ -263,8 +286,8 @@ async def compare_prompt_versions_detailed(
 @router.get("/prompts/{prompt_id}/versions/compare")
 async def compare_prompt_versions(
     prompt_id: str,
-    version_a: int = Query(..., description="First version number"),
-    version_b: int = Query(..., description="Second version number"),
+    version_a: str = Query(..., description="First version number"),
+    version_b: str = Query(..., description="Second version number"),
     db: Session = Depends(get_db)
 ):
     """Compare two versions of a prompt."""

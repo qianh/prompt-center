@@ -10,11 +10,11 @@ from src.models.base import BaseModel
 
 class PromptVersion(BaseModel):
     """Prompt version model for storing different versions of prompt content."""
-    
+
     __tablename__ = "prompt_versions"
-    
+
     prompt_id = Column(String, ForeignKey("prompts.id", ondelete="CASCADE"), nullable=False, index=True)
-    version_number = Column(Integer, nullable=False)
+    version_number = Column(String(50), nullable=False)  # Changed from Integer to String to support decimal versions like "2.5"
     content = Column(Text, nullable=False)
     change_notes = Column(Text, nullable=True)
     

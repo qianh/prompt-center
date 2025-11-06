@@ -13,8 +13,8 @@ interface VersionedPromptEditorProps {
 }
 
 interface SaveConfirmDialogProps {
-  currentVersion: number;
-  onConfirm: (createNew: boolean, changeNotes: string, customVersion?: number) => void;
+  currentVersion: string;
+  onConfirm: (createNew: boolean, changeNotes: string, customVersion?: string) => void;
   onCancel: () => void;
 }
 
@@ -26,7 +26,20 @@ const SaveConfirmDialog: React.FC<SaveConfirmDialogProps> = ({
   const [createNew, setCreateNew] = useState(true);
   const [changeNotes, setChangeNotes] = useState('');
   const [useCustomVersion, setUseCustomVersion] = useState(false);
-  const [customVersion, setCustomVersion] = useState(currentVersion + 1);
+
+  // Calculate next version: parse current as float, add 1.0, format
+  const getNextVersion = (current: string): string => {
+    try {
+      const num = parseFloat(current);
+      if (isNaN(num)) return "1.0";
+      const next = num + 1.0;
+      return next % 1 === 0 ? `${next}.0` : next.toString();
+    } catch {
+      return "1.0";
+    }
+  };
+
+  const [customVersion, setCustomVersion] = useState(getNextVersion(currentVersion));
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -36,7 +49,7 @@ const SaveConfirmDialog: React.FC<SaveConfirmDialogProps> = ({
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="text-sm text-gray-600">
-            Current version: <span className="font-semibold">v{currentVersion}.0</span>
+            Current version: <span className="font-semibold">v{currentVersion}</span>
           </div>
 
           {/* Update current version option */}
@@ -48,7 +61,7 @@ const SaveConfirmDialog: React.FC<SaveConfirmDialogProps> = ({
               className="mt-1"
             />
             <div>
-              <div className="font-medium">Update current version (v{currentVersion}.0)</div>
+              <div className="font-medium">Update current version (v{currentVersion})</div>
               <div className="text-sm text-gray-600">Overwrite existing version</div>
             </div>
           </label>
@@ -63,9 +76,9 @@ const SaveConfirmDialog: React.FC<SaveConfirmDialogProps> = ({
             />
             <div className="flex-1">
               <div className="font-medium">
-                Create new version (v{useCustomVersion ? customVersion : currentVersion + 1}.0)
+                Create new version (v{useCustomVersion ? customVersion : getNextVersion(currentVersion)})
               </div>
-              <div className="text-sm text-gray-600">Keep v{currentVersion}.0 as history</div>
+              <div className="text-sm text-gray-600">Keep v{currentVersion} as history</div>
             </div>
           </label>
 
@@ -87,15 +100,14 @@ const SaveConfirmDialog: React.FC<SaveConfirmDialogProps> = ({
                     Version Number
                   </label>
                   <Input
-                    type="number"
-                    min="1"
+                    type="text"
                     value={customVersion}
-                    onChange={(e) => setCustomVersion(parseInt(e.target.value) || 1)}
-                    placeholder="Enter version number..."
-                    className="w-32"
+                    onChange={(e) => setCustomVersion(e.target.value)}
+                    placeholder="e.g., 2.5, 3.0, 10.1"
+                    className="w-40"
                   />
                   <p className="text-xs text-gray-500 mt-1">
-                    Will be saved as v{customVersion}.0
+                    Will be saved as v{customVersion}
                   </p>
                 </div>
               )}
@@ -197,7 +209,7 @@ export const VersionedPromptEditor: React.FC<VersionedPromptEditorProps> = ({
     setShowSaveDialog(true);
   };
 
-  const handleConfirmSave = async (createNew: boolean, changeNotes: string, customVersion?: number) => {
+  const handleConfirmSave = async (createNew: boolean, changeNotes: string, customVersion?: string) => {
     setLoading(true);
     setShowSaveDialog(false);
 
@@ -308,7 +320,7 @@ export const VersionedPromptEditor: React.FC<VersionedPromptEditorProps> = ({
                         : 'bg-gray-100 text-gray-600 hover:bg-gray-200 border-gray-300'
                     } border`}
                   >
-                    v{version.version_number}.0
+                    v{version.version_number}
                     {version === versions[0] && (
                       <span className="ml-1 text-xs">(Latest)</span>
                     )}

@@ -18,14 +18,14 @@ export interface Prompt {
   tags: string[];
   created_at: string;
   updated_at: string;
-  latest_version: number;
+  latest_version: string;  // Changed to string to support decimal versions
   total_versions: number;
 }
 
 export interface PromptVersion {
   id: string;
   prompt_id: string;
-  version_number: number;
+  version_number: string;  // Changed to string to support decimal versions like "2.5"
   content: string;
   change_notes: string;
   created_at: string;
@@ -136,7 +136,7 @@ export const promptVersionsApi = {
   createVersion: async (promptId: string, data: {
     content: string;
     change_notes: string;
-    version_number?: number;
+    version_number?: string;  // Changed to string to support decimal versions
   }) => {
     const response = await api.post(`/api/v1/prompts/${promptId}/versions`, data);
     return response.data;
