@@ -32,38 +32,42 @@ class LLMProvider(ABC):
 
 class OpenAIProvider(LLMProvider):
     """OpenAI API provider."""
-    
+
     def get_provider_name(self) -> str:
         return "openai"
-    
+
     async def call(self, prompt: str, config: Dict[str, Any]) -> Dict[str, Any]:
         """Call OpenAI API."""
         start_time = time.time()
-        
+
         headers = {
             "Authorization": f"Bearer {config['api_key']}",
             "Content-Type": "application/json"
         }
-        
+
         payload = {
             "model": config.get("model", "gpt-3.5-turbo"),
             "messages": [{"role": "user", "content": prompt}],
             "temperature": config.get("temperature", 0.7),
             "max_tokens": config.get("max_tokens", 1000)
         }
-        
+
+        # Use custom base_url if provided, otherwise use default
+        base_url = config.get("base_url", "https://api.openai.com")
+        api_url = f"{base_url.rstrip('/')}/v1/chat/completions"
+
         try:
             async with httpx.AsyncClient(timeout=30.0) as client:
                 response = await client.post(
-                    "https://api.openai.com/v1/chat/completions",
+                    api_url,
                     headers=headers,
                     json=payload
                 )
                 response.raise_for_status()
-                
+
                 result = response.json()
                 end_time = time.time()
-                
+
                 return {
                     "success": True,
                     "content": result["choices"][0]["message"]["content"],
@@ -72,7 +76,7 @@ class OpenAIProvider(LLMProvider):
                     "execution_time_ms": int((end_time - start_time) * 1000),
                     "tokens_used": result.get("usage", {}).get("total_tokens", 0)
                 }
-                
+
         except httpx.HTTPStatusError as e:
             end_time = time.time()
             return {
@@ -93,39 +97,43 @@ class OpenAIProvider(LLMProvider):
 
 class AnthropicProvider(LLMProvider):
     """Anthropic Claude API provider."""
-    
+
     def get_provider_name(self) -> str:
         return "anthropic"
-    
+
     async def call(self, prompt: str, config: Dict[str, Any]) -> Dict[str, Any]:
         """Call Anthropic API."""
         start_time = time.time()
-        
+
         headers = {
             "x-api-key": config['api_key'],
             "Content-Type": "application/json",
             "anthropic-version": "2023-06-01"
         }
-        
+
         payload = {
             "model": config.get("model", "claude-3-sonnet-20240229"),
             "messages": [{"role": "user", "content": prompt}],
             "max_tokens": config.get("max_tokens", 1000),
             "temperature": config.get("temperature", 0.7)
         }
-        
+
+        # Use custom base_url if provided, otherwise use default
+        base_url = config.get("base_url", "https://api.anthropic.com")
+        api_url = f"{base_url.rstrip('/')}/v1/messages"
+
         try:
             async with httpx.AsyncClient(timeout=30.0) as client:
                 response = await client.post(
-                    "https://api.anthropic.com/v1/messages",
+                    api_url,
                     headers=headers,
                     json=payload
                 )
                 response.raise_for_status()
-                
+
                 result = response.json()
                 end_time = time.time()
-                
+
                 return {
                     "success": True,
                     "content": result["content"][0]["text"],
@@ -134,7 +142,345 @@ class AnthropicProvider(LLMProvider):
                     "execution_time_ms": int((end_time - start_time) * 1000),
                     "tokens_used": result.get("usage", {}).get("input_tokens", 0) + result.get("usage", {}).get("output_tokens", 0)
                 }
-                
+
+        except httpx.HTTPStatusError as e:
+            end_time = time.time()
+            return {
+                "success": False,
+                "error": f"HTTP {e.response.status_code}: {e.response.text}",
+                "execution_time_ms": int((end_time - start_time) * 1000),
+                "tokens_used": 0
+            }
+        except Exception as e:
+            end_time = time.time()
+            return {
+                "success": False,
+                "error": str(e),
+                "execution_time_ms": int((end_time - start_time) * 1000),
+                "tokens_used": 0
+            }
+
+
+class GoogleAIProvider(LLMProvider):
+    """Google AI (Gemini) API provider."""
+
+    def get_provider_name(self) -> str:
+        return "google"
+
+    async def call(self, prompt: str, config: Dict[str, Any]) -> Dict[str, Any]:
+        """Call Google AI API."""
+        start_time = time.time()
+
+        headers = {
+            "Content-Type": "application/json"
+        }
+
+        payload = {
+            "contents": [{"parts": [{"text": prompt}]}],
+            "generationConfig": {
+                "temperature": config.get("temperature", 0.7),
+                "maxOutputTokens": config.get("max_tokens", 1000)
+            }
+        }
+
+        # Use custom base_url if provided
+        base_url = config.get("base_url", "https://generativelanguage.googleapis.com")
+        model = config.get("model", "gemini-pro")
+        api_key = config['api_key']
+        api_url = f"{base_url.rstrip('/')}/v1beta/models/{model}:generateContent?key={api_key}"
+
+        try:
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                response = await client.post(
+                    api_url,
+                    headers=headers,
+                    json=payload
+                )
+                response.raise_for_status()
+
+                result = response.json()
+                end_time = time.time()
+
+                content = result["candidates"][0]["content"]["parts"][0]["text"]
+                tokens = result.get("usageMetadata", {}).get("totalTokenCount", 0)
+
+                return {
+                    "success": True,
+                    "content": content,
+                    "usage": result.get("usageMetadata", {}),
+                    "model": model,
+                    "execution_time_ms": int((end_time - start_time) * 1000),
+                    "tokens_used": tokens
+                }
+
+        except httpx.HTTPStatusError as e:
+            end_time = time.time()
+            return {
+                "success": False,
+                "error": f"HTTP {e.response.status_code}: {e.response.text}",
+                "execution_time_ms": int((end_time - start_time) * 1000),
+                "tokens_used": 0
+            }
+        except Exception as e:
+            end_time = time.time()
+            return {
+                "success": False,
+                "error": str(e),
+                "execution_time_ms": int((end_time - start_time) * 1000),
+                "tokens_used": 0
+            }
+
+
+class DeepSeekProvider(LLMProvider):
+    """DeepSeek API provider (OpenAI-compatible)."""
+
+    def get_provider_name(self) -> str:
+        return "deepseek"
+
+    async def call(self, prompt: str, config: Dict[str, Any]) -> Dict[str, Any]:
+        """Call DeepSeek API (OpenAI-compatible format)."""
+        start_time = time.time()
+
+        headers = {
+            "Authorization": f"Bearer {config['api_key']}",
+            "Content-Type": "application/json"
+        }
+
+        payload = {
+            "model": config.get("model", "deepseek-chat"),
+            "messages": [{"role": "user", "content": prompt}],
+            "temperature": config.get("temperature", 0.7),
+            "max_tokens": config.get("max_tokens", 1000)
+        }
+
+        # Use custom base_url if provided, otherwise use DeepSeek default
+        base_url = config.get("base_url", "https://api.deepseek.com")
+        api_url = f"{base_url.rstrip('/')}/v1/chat/completions"
+
+        try:
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                response = await client.post(
+                    api_url,
+                    headers=headers,
+                    json=payload
+                )
+                response.raise_for_status()
+
+                result = response.json()
+                end_time = time.time()
+
+                return {
+                    "success": True,
+                    "content": result["choices"][0]["message"]["content"],
+                    "usage": result.get("usage", {}),
+                    "model": result["model"],
+                    "execution_time_ms": int((end_time - start_time) * 1000),
+                    "tokens_used": result.get("usage", {}).get("total_tokens", 0)
+                }
+
+        except httpx.HTTPStatusError as e:
+            end_time = time.time()
+            return {
+                "success": False,
+                "error": f"HTTP {e.response.status_code}: {e.response.text}",
+                "execution_time_ms": int((end_time - start_time) * 1000),
+                "tokens_used": 0
+            }
+        except Exception as e:
+            end_time = time.time()
+            return {
+                "success": False,
+                "error": str(e),
+                "execution_time_ms": int((end_time - start_time) * 1000),
+                "tokens_used": 0
+            }
+
+
+class QwenProvider(LLMProvider):
+    """Qwen (通义千问) API provider (OpenAI-compatible)."""
+
+    def get_provider_name(self) -> str:
+        return "qwen"
+
+    async def call(self, prompt: str, config: Dict[str, Any]) -> Dict[str, Any]:
+        """Call Qwen API (OpenAI-compatible format)."""
+        start_time = time.time()
+
+        headers = {
+            "Authorization": f"Bearer {config['api_key']}",
+            "Content-Type": "application/json"
+        }
+
+        payload = {
+            "model": config.get("model", "qwen-turbo"),
+            "messages": [{"role": "user", "content": prompt}],
+            "temperature": config.get("temperature", 0.7),
+            "max_tokens": config.get("max_tokens", 1000)
+        }
+
+        # Use custom base_url if provided, otherwise use Alibaba Cloud default
+        base_url = config.get("base_url", "https://dashscope.aliyuncs.com/compatible-mode")
+        api_url = f"{base_url.rstrip('/')}/v1/chat/completions"
+
+        try:
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                response = await client.post(
+                    api_url,
+                    headers=headers,
+                    json=payload
+                )
+                response.raise_for_status()
+
+                result = response.json()
+                end_time = time.time()
+
+                return {
+                    "success": True,
+                    "content": result["choices"][0]["message"]["content"],
+                    "usage": result.get("usage", {}),
+                    "model": result["model"],
+                    "execution_time_ms": int((end_time - start_time) * 1000),
+                    "tokens_used": result.get("usage", {}).get("total_tokens", 0)
+                }
+
+        except httpx.HTTPStatusError as e:
+            end_time = time.time()
+            return {
+                "success": False,
+                "error": f"HTTP {e.response.status_code}: {e.response.text}",
+                "execution_time_ms": int((end_time - start_time) * 1000),
+                "tokens_used": 0
+            }
+        except Exception as e:
+            end_time = time.time()
+            return {
+                "success": False,
+                "error": str(e),
+                "execution_time_ms": int((end_time - start_time) * 1000),
+                "tokens_used": 0
+            }
+
+
+class KimiProvider(LLMProvider):
+    """Kimi (月之暗面/Moonshot) API provider (OpenAI-compatible)."""
+
+    def get_provider_name(self) -> str:
+        return "kimi"
+
+    async def call(self, prompt: str, config: Dict[str, Any]) -> Dict[str, Any]:
+        """Call Kimi API (OpenAI-compatible format)."""
+        start_time = time.time()
+
+        headers = {
+            "Authorization": f"Bearer {config['api_key']}",
+            "Content-Type": "application/json"
+        }
+
+        payload = {
+            "model": config.get("model", "moonshot-v1-8k"),
+            "messages": [{"role": "user", "content": prompt}],
+            "temperature": config.get("temperature", 0.7),
+            "max_tokens": config.get("max_tokens", 1000)
+        }
+
+        # Use custom base_url if provided, otherwise use Moonshot default
+        base_url = config.get("base_url", "https://api.moonshot.cn")
+        api_url = f"{base_url.rstrip('/')}/v1/chat/completions"
+
+        try:
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                response = await client.post(
+                    api_url,
+                    headers=headers,
+                    json=payload
+                )
+                response.raise_for_status()
+
+                result = response.json()
+                end_time = time.time()
+
+                return {
+                    "success": True,
+                    "content": result["choices"][0]["message"]["content"],
+                    "usage": result.get("usage", {}),
+                    "model": result["model"],
+                    "execution_time_ms": int((end_time - start_time) * 1000),
+                    "tokens_used": result.get("usage", {}).get("total_tokens", 0)
+                }
+
+        except httpx.HTTPStatusError as e:
+            end_time = time.time()
+            return {
+                "success": False,
+                "error": f"HTTP {e.response.status_code}: {e.response.text}",
+                "execution_time_ms": int((end_time - start_time) * 1000),
+                "tokens_used": 0
+            }
+        except Exception as e:
+            end_time = time.time()
+            return {
+                "success": False,
+                "error": str(e),
+                "execution_time_ms": int((end_time - start_time) * 1000),
+                "tokens_used": 0
+            }
+
+
+class CustomProvider(LLMProvider):
+    """Custom OpenAI-compatible API provider."""
+
+    def get_provider_name(self) -> str:
+        return "custom"
+
+    async def call(self, prompt: str, config: Dict[str, Any]) -> Dict[str, Any]:
+        """Call custom OpenAI-compatible API."""
+        start_time = time.time()
+
+        headers = {
+            "Authorization": f"Bearer {config['api_key']}",
+            "Content-Type": "application/json"
+        }
+
+        payload = {
+            "model": config.get("model", "gpt-3.5-turbo"),
+            "messages": [{"role": "user", "content": prompt}],
+            "temperature": config.get("temperature", 0.7),
+            "max_tokens": config.get("max_tokens", 1000)
+        }
+
+        # Custom provider MUST have base_url
+        base_url = config.get("base_url")
+        if not base_url:
+            return {
+                "success": False,
+                "error": "Custom provider requires base_url to be configured",
+                "execution_time_ms": 0,
+                "tokens_used": 0
+            }
+
+        api_url = f"{base_url.rstrip('/')}/v1/chat/completions"
+
+        try:
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                response = await client.post(
+                    api_url,
+                    headers=headers,
+                    json=payload
+                )
+                response.raise_for_status()
+
+                result = response.json()
+                end_time = time.time()
+
+                return {
+                    "success": True,
+                    "content": result["choices"][0]["message"]["content"],
+                    "usage": result.get("usage", {}),
+                    "model": result.get("model", config.get("model")),
+                    "execution_time_ms": int((end_time - start_time) * 1000),
+                    "tokens_used": result.get("usage", {}).get("total_tokens", 0)
+                }
+
         except httpx.HTTPStatusError as e:
             end_time = time.time()
             return {
@@ -155,22 +501,22 @@ class AnthropicProvider(LLMProvider):
 
 class MockLLMProvider(LLMProvider):
     """Mock LLM provider for testing."""
-    
+
     def get_provider_name(self) -> str:
         return "mock"
-    
+
     async def call(self, prompt: str, config: Dict[str, Any]) -> Dict[str, Any]:
         """Mock LLM call for testing."""
         start_time = time.time()
-        
+
         # Simulate processing time
         await asyncio.sleep(0.1)
-        
+
         end_time = time.time()
-        
+
         # Generate mock response based on prompt length
         mock_content = f"Mock response to: {prompt[:50]}..."
-        
+
         return {
             "success": True,
             "content": mock_content,
@@ -183,11 +529,16 @@ class MockLLMProvider(LLMProvider):
 
 class LLMService:
     """Service for managing LLM operations."""
-    
+
     def __init__(self):
         self.providers = {
             "openai": OpenAIProvider(),
             "anthropic": AnthropicProvider(),
+            "google": GoogleAIProvider(),
+            "deepseek": DeepSeekProvider(),
+            "qwen": QwenProvider(),
+            "kimi": KimiProvider(),
+            "custom": CustomProvider(),
             "mock": MockLLMProvider()
         }
     
@@ -200,14 +551,15 @@ class LLMService:
     async def call_llm(self, prompt: str, config: LLMConfig) -> Dict[str, Any]:
         """Call LLM with the given prompt and configuration."""
         provider = self.get_provider(config.provider)
-        
+
         provider_config = {
             "api_key": config.api_key,
             "model": config.model,
+            "base_url": config.base_url,
             "temperature": config.temperature,
             "max_tokens": config.max_tokens
         }
-        
+
         return await provider.call(prompt, provider_config)
     
     async def compare_prompt_versions(

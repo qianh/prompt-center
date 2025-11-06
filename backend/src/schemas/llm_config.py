@@ -8,9 +8,10 @@ from pydantic import BaseModel, Field
 
 class LLMConfigBase(BaseModel):
     """Base LLM Config schema."""
-    provider: str = Field(..., description="LLM provider (openai, anthropic, mock)")
+    provider: str = Field(..., description="LLM provider (openai, anthropic, deepseek, qwen, kimi, custom)")
     api_key: str = Field(..., description="API key for the provider")
     model: str = Field(..., description="Model name")
+    base_url: Optional[str] = Field(None, description="Custom API base URL for proxies or custom providers")
     temperature: float = Field(0.7, ge=0.0, le=2.0, description="Temperature for generation")
     max_tokens: int = Field(1000, ge=1, le=8000, description="Maximum tokens to generate")
     active: bool = Field(True, description="Whether this config is active")
@@ -26,6 +27,7 @@ class LLMConfigUpdate(BaseModel):
     provider: Optional[str] = Field(None, description="LLM provider")
     api_key: Optional[str] = Field(None, description="API key for the provider")
     model: Optional[str] = Field(None, description="Model name")
+    base_url: Optional[str] = Field(None, description="Custom API base URL for proxies or custom providers")
     temperature: Optional[float] = Field(None, ge=0.0, le=2.0, description="Temperature for generation")
     max_tokens: Optional[int] = Field(None, ge=1, le=8000, description="Maximum tokens to generate")
     active: Optional[bool] = Field(None, description="Whether this config is active")

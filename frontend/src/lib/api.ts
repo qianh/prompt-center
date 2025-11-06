@@ -34,6 +34,7 @@ export interface LLMConfig {
   provider: string;
   api_key: string;
   model: string;
+  base_url?: string;
   temperature: number;
   max_tokens: number;
   active: boolean;
@@ -167,6 +168,7 @@ export const llmConfigsApi = {
     provider: string;
     api_key: string;
     model: string;
+    base_url?: string;
     temperature: number;
     max_tokens: number;
     active: boolean;
@@ -179,6 +181,7 @@ export const llmConfigsApi = {
     provider?: string;
     api_key?: string;
     model?: string;
+    base_url?: string;
     temperature?: number;
     max_tokens?: number;
     active?: boolean;
@@ -200,6 +203,7 @@ export const llmConfigsApi = {
     provider: string;
     api_key: string;
     model: string;
+    base_url?: string;
     temperature?: number;
     max_tokens?: number;
   }) => {

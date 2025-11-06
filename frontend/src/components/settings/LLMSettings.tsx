@@ -18,6 +18,7 @@ export const LLMSettings: React.FC<LLMSettingsProps> = ({ onBack }) => {
     provider: 'openai',
     api_key: '',
     model: '',
+    base_url: '',
     temperature: 0.7,
     max_tokens: 1000,
     active: true,
@@ -47,6 +48,7 @@ export const LLMSettings: React.FC<LLMSettingsProps> = ({ onBack }) => {
       provider: 'openai',
       api_key: '',
       model: '',
+      base_url: '',
       temperature: 0.7,
       max_tokens: 1000,
       active: true,
@@ -61,6 +63,7 @@ export const LLMSettings: React.FC<LLMSettingsProps> = ({ onBack }) => {
       provider: config.provider,
       api_key: config.api_key,
       model: config.model,
+      base_url: config.base_url || '',
       temperature: config.temperature,
       max_tokens: config.max_tokens,
       active: config.active,
@@ -103,6 +106,7 @@ export const LLMSettings: React.FC<LLMSettingsProps> = ({ onBack }) => {
         provider: formData.provider,
         api_key: formData.api_key,
         model: formData.model,
+        base_url: formData.base_url || undefined,
         temperature: formData.temperature,
         max_tokens: 100,
       });
@@ -145,6 +149,10 @@ export const LLMSettings: React.FC<LLMSettingsProps> = ({ onBack }) => {
       openai: 'OpenAI',
       anthropic: 'Anthropic',
       google: 'Google AI',
+      deepseek: 'DeepSeek',
+      qwen: 'Qwen (通义千问)',
+      kimi: 'Kimi (月之暗面)',
+      custom: 'Custom Provider',
       mock: 'Mock (Testing)',
     };
     return labels[provider] || provider;
@@ -155,6 +163,10 @@ export const LLMSettings: React.FC<LLMSettingsProps> = ({ onBack }) => {
       openai: 'e.g., gpt-4, gpt-3.5-turbo',
       anthropic: 'e.g., claude-3-sonnet-20240229',
       google: 'e.g., gemini-pro',
+      deepseek: 'e.g., deepseek-chat, deepseek-coder',
+      qwen: 'e.g., qwen-turbo, qwen-plus, qwen-max',
+      kimi: 'e.g., moonshot-v1-8k, moonshot-v1-32k',
+      custom: 'Enter your model name',
       mock: 'e.g., mock-model',
     };
     return placeholders[provider] || 'Enter model name';
@@ -195,6 +207,10 @@ export const LLMSettings: React.FC<LLMSettingsProps> = ({ onBack }) => {
                   <option value="openai">OpenAI</option>
                   <option value="anthropic">Anthropic</option>
                   <option value="google">Google AI</option>
+                  <option value="deepseek">DeepSeek</option>
+                  <option value="qwen">Qwen (通义千问)</option>
+                  <option value="kimi">Kimi (月之暗面)</option>
+                  <option value="custom">Custom Provider</option>
                   <option value="mock">Mock (Testing)</option>
                 </select>
               </div>
@@ -220,6 +236,24 @@ export const LLMSettings: React.FC<LLMSettingsProps> = ({ onBack }) => {
                   placeholder={getModelPlaceholder(formData.provider)}
                   required
                 />
+              </div>
+
+              {/* Base URL */}
+              <div>
+                <label className="block text-sm font-medium mb-2">
+                  Base URL (Optional)
+                  <span className="text-xs text-gray-500 ml-2">For API proxies or custom endpoints</span>
+                </label>
+                <Input
+                  value={formData.base_url}
+                  onChange={(e) => setFormData({ ...formData, base_url: e.target.value })}
+                  placeholder={formData.provider === 'custom' ? 'https://your-api-endpoint.com' : 'Leave empty for default'}
+                />
+                {formData.provider === 'custom' && (
+                  <p className="text-xs text-amber-600 mt-1">
+                    ⚠️ Custom provider requires a base URL
+                  </p>
+                )}
               </div>
 
               {/* Temperature */}

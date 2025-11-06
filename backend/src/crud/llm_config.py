@@ -63,6 +63,7 @@ class LLMConfigCRUD:
             provider=obj_in.provider,
             api_key=obj_in.api_key,
             model=obj_in.model,
+            base_url=obj_in.base_url,
             temperature=str(obj_in.temperature),
             max_tokens=obj_in.max_tokens,
             is_active=obj_in.active
