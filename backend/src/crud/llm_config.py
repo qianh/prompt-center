@@ -81,10 +81,16 @@ class LLMConfigCRUD:
     ) -> LLMConfig:
         """Update an LLM config."""
         update_data = obj_in.model_dump(exclude_unset=True)
-        
+
+        # Map schema fields to model fields
         for field, value in update_data.items():
-            setattr(db_obj, field, value)
-        
+            if field == 'active':
+                db_obj.is_active = value
+            elif field == 'temperature':
+                db_obj.temperature = str(value)
+            else:
+                setattr(db_obj, field, value)
+
         db.add(db_obj)
         db.commit()
         db.refresh(db_obj)

@@ -31,13 +31,14 @@ export interface PromptVersion {
 
 export interface LLMConfig {
   id: string;
-  name: string;
   provider: string;
+  api_key: string;
   model: string;
-  temperature: string;
+  temperature: number;
   max_tokens: number;
-  is_active: boolean;
+  active: boolean;
   created_at: string;
+  updated_at: string;
 }
 
 export interface Comparison {
@@ -147,11 +148,21 @@ export const promptVersionsApi = {
 };
 
 export const llmConfigsApi = {
-  getConfigs: async () => {
-    const response = await api.get('/api/v1/llm-configs');
+  getConfigs: async (params?: {
+    page?: number;
+    limit?: number;
+    provider?: string;
+    active?: boolean;
+  }) => {
+    const response = await api.get('/api/v1/llm-configs', { params });
     return response.data;
   },
-  
+
+  getConfig: async (id: string) => {
+    const response = await api.get(`/api/v1/llm-configs/${id}`);
+    return response.data;
+  },
+
   createConfig: async (data: {
     provider: string;
     api_key: string;
@@ -161,6 +172,38 @@ export const llmConfigsApi = {
     active: boolean;
   }) => {
     const response = await api.post('/api/v1/llm-configs', data);
+    return response.data;
+  },
+
+  updateConfig: async (id: string, data: {
+    provider?: string;
+    api_key?: string;
+    model?: string;
+    temperature?: number;
+    max_tokens?: number;
+    active?: boolean;
+  }) => {
+    const response = await api.put(`/api/v1/llm-configs/${id}`, data);
+    return response.data;
+  },
+
+  deleteConfig: async (id: string) => {
+    await api.delete(`/api/v1/llm-configs/${id}`);
+  },
+
+  toggleConfig: async (id: string) => {
+    const response = await api.patch(`/api/v1/llm-configs/${id}/toggle`);
+    return response.data;
+  },
+
+  testConnection: async (data: {
+    provider: string;
+    api_key: string;
+    model: string;
+    temperature?: number;
+    max_tokens?: number;
+  }) => {
+    const response = await api.post('/api/v1/llm-configs/test', data);
     return response.data;
   },
 };

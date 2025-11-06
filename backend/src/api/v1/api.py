@@ -9,12 +9,13 @@ from typing import List, Optional
 import json
 
 from src.core.database import get_db
-from src.crud import prompt_crud, prompt_version_crud, comparison_crud
+from src.crud import prompt_crud, prompt_version_crud, comparison_crud, llm_config_crud
 from src.services import prompt_version_service, llm_service, comparison_service
 from src.schemas import (
     PromptCreate, PromptUpdate, PromptResponse, PromptListResponse,
     PromptVersionCreate, PromptVersionUpdate, PromptVersionResponse,
-    ComparisonCreate, ComparisonResponse, ComparisonListResponse
+    ComparisonCreate, ComparisonResponse, ComparisonListResponse,
+    LLMConfigCreate, LLMConfigUpdate, LLMConfigResponse, LLMConfigListResponse
 )
 
 router = APIRouter(prefix="/api/v1", tags=["api"])
@@ -767,6 +768,217 @@ async def retry_comparison(
             "successful_executions": len(successful_results),
             "total_executions": len(updated_results)
         }
-        
+
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
+
+
+# LLM Configuration endpoints
+@router.get("/llm-configs", response_model=LLMConfigListResponse)
+async def get_llm_configs(
+    page: int = Query(1, ge=1, description="Page number"),
+    limit: int = Query(20, ge=1, le=100, description="Items per page"),
+    provider: Optional[str] = Query(None, description="Filter by provider"),
+    active: Optional[bool] = Query(None, description="Filter by active status"),
+    db: Session = Depends(get_db)
+):
+    """Get list of LLM configurations with filtering and pagination."""
+    skip = (page - 1) * limit
+
+    configs, total = llm_config_crud.get_multi(
+        db=db,
+        skip=skip,
+        limit=limit,
+        provider=provider,
+        active=active
+    )
+
+    # Calculate pagination
+    total_pages = (total + limit - 1) // limit
+    has_next = page < total_pages
+    has_prev = page > 1
+
+    return LLMConfigListResponse(
+        items=[
+            LLMConfigResponse(
+                id=config.id,
+                provider=config.provider,
+                api_key=config.api_key,
+                model=config.model,
+                temperature=float(config.temperature),
+                max_tokens=config.max_tokens,
+                active=config.is_active,
+                created_at=config.created_at.isoformat(),
+                updated_at=config.updated_at.isoformat()
+            ) for config in configs
+        ],
+        total=total,
+        page=page,
+        limit=limit,
+        total_pages=total_pages,
+        has_next=has_next,
+        has_prev=has_prev
+    )
+
+
+@router.post("/llm-configs", response_model=LLMConfigResponse, status_code=201)
+async def create_llm_config(
+    config_data: LLMConfigCreate,
+    db: Session = Depends(get_db)
+):
+    """Create a new LLM configuration."""
+    config = llm_config_crud.create(db=db, obj_in=config_data)
+    return LLMConfigResponse(
+        id=config.id,
+        provider=config.provider,
+        api_key=config.api_key,
+        model=config.model,
+        temperature=float(config.temperature),
+        max_tokens=config.max_tokens,
+        active=config.is_active,
+        created_at=config.created_at.isoformat(),
+        updated_at=config.updated_at.isoformat()
+    )
+
+
+@router.get("/llm-configs/{config_id}", response_model=LLMConfigResponse)
+async def get_llm_config_by_id(
+    config_id: str,
+    db: Session = Depends(get_db)
+):
+    """Get a specific LLM configuration by ID."""
+    config = llm_config_crud.get(db=db, config_id=config_id)
+    if not config:
+        raise HTTPException(status_code=404, detail="LLM configuration not found")
+
+    return LLMConfigResponse(
+        id=config.id,
+        provider=config.provider,
+        api_key=config.api_key,
+        model=config.model,
+        temperature=float(config.temperature),
+        max_tokens=config.max_tokens,
+        active=config.is_active,
+        created_at=config.created_at.isoformat(),
+        updated_at=config.updated_at.isoformat()
+    )
+
+
+@router.put("/llm-configs/{config_id}", response_model=LLMConfigResponse)
+async def update_llm_config(
+    config_id: str,
+    config_data: LLMConfigUpdate,
+    db: Session = Depends(get_db)
+):
+    """Update an LLM configuration."""
+    config = llm_config_crud.get(db=db, config_id=config_id)
+    if not config:
+        raise HTTPException(status_code=404, detail="LLM configuration not found")
+
+    updated_config = llm_config_crud.update(db=db, db_obj=config, obj_in=config_data)
+    return LLMConfigResponse(
+        id=updated_config.id,
+        provider=updated_config.provider,
+        api_key=updated_config.api_key,
+        model=updated_config.model,
+        temperature=float(updated_config.temperature),
+        max_tokens=updated_config.max_tokens,
+        active=updated_config.is_active,
+        created_at=updated_config.created_at.isoformat(),
+        updated_at=updated_config.updated_at.isoformat()
+    )
+
+
+@router.delete("/llm-configs/{config_id}")
+async def delete_llm_config(
+    config_id: str,
+    db: Session = Depends(get_db)
+):
+    """Delete an LLM configuration."""
+    success = llm_config_crud.delete(db=db, config_id=config_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="LLM configuration not found")
+    return {"message": "LLM configuration deleted successfully"}
+
+
+@router.patch("/llm-configs/{config_id}/toggle")
+async def toggle_llm_config(
+    config_id: str,
+    db: Session = Depends(get_db)
+):
+    """Toggle (activate/deactivate) an LLM configuration."""
+    config = llm_config_crud.get(db=db, config_id=config_id)
+    if not config:
+        raise HTTPException(status_code=404, detail="LLM configuration not found")
+
+    # Toggle the active state
+    if config.is_active:
+        updated_config = llm_config_crud.deactivate(db=db, config_id=config_id)
+    else:
+        updated_config = llm_config_crud.activate(db=db, config_id=config_id)
+
+    return LLMConfigResponse(
+        id=updated_config.id,
+        provider=updated_config.provider,
+        api_key=updated_config.api_key,
+        model=updated_config.model,
+        temperature=float(updated_config.temperature),
+        max_tokens=updated_config.max_tokens,
+        active=updated_config.is_active,
+        created_at=updated_config.created_at.isoformat(),
+        updated_at=updated_config.updated_at.isoformat()
+    )
+
+
+@router.post("/llm-configs/test")
+async def test_llm_connection(
+    provider: str,
+    api_key: str,
+    model: str,
+    temperature: float = 0.7,
+    max_tokens: int = 100,
+    db: Session = Depends(get_db)
+):
+    """Test LLM provider connection with the given credentials."""
+    # Create a temporary config object for testing
+    from src.models.llm_config import LLMConfig
+
+    temp_config = LLMConfig(
+        name=f"temp-{provider}",
+        provider=provider,
+        api_key=api_key,
+        model=model,
+        temperature=str(temperature),
+        max_tokens=max_tokens,
+        is_active=True
+    )
+
+    # Use a simple test prompt
+    test_prompt = "Say 'Connection test successful' if you can read this."
+
+    try:
+        result = await llm_service.call_llm(test_prompt, temp_config)
+
+        if result["success"]:
+            return {
+                "success": True,
+                "message": "Connection test successful",
+                "provider": provider,
+                "model": result.get("model"),
+                "execution_time_ms": result.get("execution_time_ms"),
+                "response_preview": result.get("content", "")[:100]
+            }
+        else:
+            return {
+                "success": False,
+                "message": "Connection test failed",
+                "error": result.get("error", "Unknown error"),
+                "provider": provider
+            }
+    except Exception as e:
+        return {
+            "success": False,
+            "message": "Connection test failed",
+            "error": str(e),
+            "provider": provider
+        }
