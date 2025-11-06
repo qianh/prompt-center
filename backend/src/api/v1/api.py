@@ -64,18 +64,27 @@ async def get_prompts(
     has_next = page < total_pages
     has_prev = page > 1
     
+    # Build response with version info
+    items = []
+    for prompt in prompts:
+        # Get version info
+        versions = prompt_version_crud.get_versions(db, prompt.id)
+        latest_version = max([v.version_number for v in versions], default=0)
+
+        items.append(PromptResponse(
+            id=prompt.id,
+            title=prompt.title,
+            description=prompt.description,
+            content=prompt.content,
+            tags=prompt.tag_list,
+            created_at=prompt.created_at,
+            updated_at=prompt.updated_at,
+            latest_version=latest_version,
+            total_versions=len(versions)
+        ))
+
     return PromptListResponse(
-        items=[
-            PromptResponse(
-                id=prompt.id,
-                title=prompt.title,
-                description=prompt.description,
-                content=prompt.content,
-                tags=prompt.tag_list,
-                created_at=prompt.created_at,
-                updated_at=prompt.updated_at
-            ) for prompt in prompts
-        ],
+        items=items,
         total=total,
         page=page,
         limit=limit,
