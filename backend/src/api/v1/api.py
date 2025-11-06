@@ -6,6 +6,7 @@ This implements the API endpoints with real database operations.
 from fastapi import APIRouter, HTTPException, Depends, Query
 from sqlalchemy.orm import Session
 from typing import List, Optional
+from pydantic import BaseModel as PydanticBaseModel
 import json
 
 from src.core.database import get_db
@@ -19,6 +20,12 @@ from src.schemas import (
 )
 
 router = APIRouter(prefix="/api/v1", tags=["api"])
+
+
+# Request models
+class LLMTestRequest(PydanticBaseModel):
+    llm_config_id: str
+    prompt: str
 
 
 # Prompts endpoints
@@ -933,6 +940,23 @@ async def toggle_llm_config(
         created_at=updated_config.created_at.isoformat(),
         updated_at=updated_config.updated_at.isoformat()
     )
+
+
+@router.post("/llm/test")
+async def test_llm_with_prompt(
+    request: LLMTestRequest,
+    db: Session = Depends(get_db)
+):
+    """Test a prompt with a specific LLM configuration."""
+    config = llm_config_crud.get(db=db, config_id=request.llm_config_id)
+    if not config:
+        raise HTTPException(status_code=404, detail="LLM configuration not found")
+
+    try:
+        result = await llm_service.call_llm(request.prompt, config)
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("/llm-configs/test")

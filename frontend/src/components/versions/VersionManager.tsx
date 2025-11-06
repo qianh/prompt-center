@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Clock, GitBranch, Eye, GitCompare, ArrowLeft } from 'lucide-react';
+import { Clock, GitBranch, Eye, GitCompare, ArrowLeft, Zap } from 'lucide-react';
 import { promptVersionsApi, PromptVersion } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Prompt } from '@/lib/api';
+import { VersionLLMCompare } from './VersionLLMCompare';
 
 interface VersionManagerProps {
   prompt: Prompt;
@@ -97,6 +98,8 @@ export const VersionManager: React.FC<VersionManagerProps> = ({ prompt, onBack }
     versionB: PromptVersion;
     comparison: any;
   } | null>(null);
+  const [showLLMCompare, setShowLLMCompare] = useState(false);
+  const [selectedVersions, setSelectedVersions] = useState<string[]>([]);
 
   useEffect(() => {
     loadVersions();
@@ -132,6 +135,33 @@ export const VersionManager: React.FC<VersionManagerProps> = ({ prompt, onBack }
     }
   };
 
+  const toggleVersionSelection = (versionId: string) => {
+    setSelectedVersions(prev =>
+      prev.includes(versionId)
+        ? prev.filter(id => id !== versionId)
+        : [...prev, versionId]
+    );
+  };
+
+  const handleStartLLMCompare = () => {
+    if (selectedVersions.length >= 2) {
+      setShowLLMCompare(true);
+    }
+  };
+
+  if (showLLMCompare) {
+    const selectedVersionsList = versions.filter(v => selectedVersions.includes(v.id));
+    return (
+      <VersionLLMCompare
+        versions={selectedVersionsList}
+        onClose={() => {
+          setShowLLMCompare(false);
+          setSelectedVersions([]);
+        }}
+      />
+    );
+  }
+
   if (showCompare && compareVersions) {
     return (
       <VersionCompare
@@ -154,37 +184,53 @@ export const VersionManager: React.FC<VersionManagerProps> = ({ prompt, onBack }
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center gap-4">
-        <Button variant="outline" onClick={onBack}>
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          Back to Prompts
-        </Button>
-        <div>
-          <h2 className="text-2xl font-bold">Version History</h2>
-          <p className="text-gray-600">{prompt.title}</p>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <Button variant="outline" onClick={onBack}>
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back to Prompts
+          </Button>
+          <div>
+            <h2 className="text-2xl font-bold">Version History</h2>
+            <p className="text-gray-600">{prompt.title}</p>
+          </div>
         </div>
+        {selectedVersions.length >= 2 && (
+          <Button onClick={handleStartLLMCompare}>
+            <Zap className="h-4 w-4 mr-2" />
+            Compare {selectedVersions.length} Versions with LLM
+          </Button>
+        )}
       </div>
 
       {/* Versions List */}
       <div className="space-y-4">
         {versions.map((version, index) => (
-          <Card key={version.id}>
+          <Card key={version.id} className={selectedVersions.includes(version.id) ? 'border-blue-500 bg-blue-50' : ''}>
             <CardHeader>
               <div className="flex justify-between items-start">
-                <div>
-                  <CardTitle className="flex items-center gap-2">
-                    <GitBranch className="h-5 w-5" />
-                    Version {version.version_number}
-                    {index === 0 && (
-                      <span className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
-                        Latest
-                      </span>
-                    )}
-                  </CardTitle>
-                  <CardDescription className="flex items-center gap-2 mt-2">
-                    <Clock className="h-4 w-4" />
-                    {new Date(version.created_at).toLocaleString()}
-                  </CardDescription>
+                <div className="flex items-start gap-3">
+                  <input
+                    type="checkbox"
+                    checked={selectedVersions.includes(version.id)}
+                    onChange={() => toggleVersionSelection(version.id)}
+                    className="mt-1"
+                  />
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      <GitBranch className="h-5 w-5" />
+                      Version {version.version_number}
+                      {index === 0 && (
+                        <span className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
+                          Latest
+                        </span>
+                      )}
+                    </CardTitle>
+                    <CardDescription className="flex items-center gap-2 mt-2">
+                      <Clock className="h-4 w-4" />
+                      {new Date(version.created_at).toLocaleString()}
+                    </CardDescription>
+                  </div>
                 </div>
                 <div className="flex gap-2">
                   {index > 0 && (
