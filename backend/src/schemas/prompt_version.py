@@ -15,7 +15,7 @@ class PromptVersionBase(BaseModel):
 
 class PromptVersionCreate(PromptVersionBase):
     """Schema for creating a prompt version."""
-    pass
+    version_number: Optional[int] = None  # If not provided, auto-generate
 
 
 class PromptVersionUpdate(BaseModel):

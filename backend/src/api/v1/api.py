@@ -329,8 +329,12 @@ async def create_prompt_version(
     prompt = prompt_crud.get(db=db, prompt_id=prompt_id)
     if not prompt:
         raise HTTPException(status_code=404, detail="Prompt not found")
-    
-    version = prompt_version_crud.create(db=db, obj_in=version_data, prompt_id=prompt_id)
+
+    try:
+        version = prompt_version_crud.create(db=db, obj_in=version_data, prompt_id=prompt_id)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
     return PromptVersionResponse(
         id=version.id,
         prompt_id=version.prompt_id,

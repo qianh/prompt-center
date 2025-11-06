@@ -14,7 +14,7 @@ interface VersionedPromptEditorProps {
 
 interface SaveConfirmDialogProps {
   currentVersion: number;
-  onConfirm: (createNew: boolean, changeNotes: string) => void;
+  onConfirm: (createNew: boolean, changeNotes: string, customVersion?: number) => void;
   onCancel: () => void;
 }
 
@@ -25,6 +25,8 @@ const SaveConfirmDialog: React.FC<SaveConfirmDialogProps> = ({
 }) => {
   const [createNew, setCreateNew] = useState(true);
   const [changeNotes, setChangeNotes] = useState('');
+  const [useCustomVersion, setUseCustomVersion] = useState(false);
+  const [customVersion, setCustomVersion] = useState(currentVersion + 1);
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -59,11 +61,46 @@ const SaveConfirmDialog: React.FC<SaveConfirmDialogProps> = ({
               onChange={() => setCreateNew(true)}
               className="mt-1"
             />
-            <div>
-              <div className="font-medium">Create new version (v{currentVersion + 1}.0)</div>
+            <div className="flex-1">
+              <div className="font-medium">
+                Create new version (v{useCustomVersion ? customVersion : currentVersion + 1}.0)
+              </div>
               <div className="text-sm text-gray-600">Keep v{currentVersion}.0 as history</div>
             </div>
           </label>
+
+          {/* Custom version number (only for new version) */}
+          {createNew && (
+            <div className="ml-6 space-y-3">
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={useCustomVersion}
+                  onChange={(e) => setUseCustomVersion(e.target.checked)}
+                />
+                <span className="text-sm font-medium">Use custom version number</span>
+              </label>
+
+              {useCustomVersion && (
+                <div>
+                  <label className="block text-sm font-medium mb-2">
+                    Version Number
+                  </label>
+                  <Input
+                    type="number"
+                    min="1"
+                    value={customVersion}
+                    onChange={(e) => setCustomVersion(parseInt(e.target.value) || 1)}
+                    placeholder="Enter version number..."
+                    className="w-32"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Will be saved as v{customVersion}.0
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Change notes (only for new version) */}
           {createNew && (
@@ -85,7 +122,7 @@ const SaveConfirmDialog: React.FC<SaveConfirmDialogProps> = ({
             <Button variant="outline" onClick={onCancel}>
               Cancel
             </Button>
-            <Button onClick={() => onConfirm(createNew, changeNotes)}>
+            <Button onClick={() => onConfirm(createNew, changeNotes, useCustomVersion ? customVersion : undefined)}>
               Save
             </Button>
           </div>
@@ -160,7 +197,7 @@ export const VersionedPromptEditor: React.FC<VersionedPromptEditorProps> = ({
     setShowSaveDialog(true);
   };
 
-  const handleConfirmSave = async (createNew: boolean, changeNotes: string) => {
+  const handleConfirmSave = async (createNew: boolean, changeNotes: string, customVersion?: number) => {
     setLoading(true);
     setShowSaveDialog(false);
 
@@ -177,6 +214,7 @@ export const VersionedPromptEditor: React.FC<VersionedPromptEditorProps> = ({
         await promptVersionsApi.createVersion(prompt.id, {
           content: formData.content,
           change_notes: changeNotes,
+          version_number: customVersion,
         });
       } else {
         // Update current version
@@ -196,9 +234,11 @@ export const VersionedPromptEditor: React.FC<VersionedPromptEditorProps> = ({
       // Reload to get updated data
       await loadVersions();
       onSave(updatedPrompt);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to save prompt:', error);
-      alert('Failed to save changes');
+      const errorMessage = error.response?.data?.detail || 'Failed to save changes';
+      alert(errorMessage);
+      setShowSaveDialog(true); // Reopen dialog on error
     } finally {
       setLoading(false);
     }

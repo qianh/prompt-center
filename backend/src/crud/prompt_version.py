@@ -55,8 +55,18 @@ class PromptVersionCRUD:
 
     def create(self, db: Session, *, obj_in: PromptVersionCreate, prompt_id: str) -> PromptVersion:
         """Create a new prompt version."""
-        version_number = self.get_next_version_number(db, prompt_id)
-        
+        # Use provided version number or auto-generate
+        version_number = obj_in.version_number if obj_in.version_number is not None else self.get_next_version_number(db, prompt_id)
+
+        # Check if version number already exists
+        existing = db.query(PromptVersion).filter(
+            PromptVersion.prompt_id == prompt_id,
+            PromptVersion.version_number == version_number
+        ).first()
+
+        if existing:
+            raise ValueError(f"Version {version_number} already exists for this prompt")
+
         db_obj = PromptVersion(
             prompt_id=prompt_id,
             version_number=version_number,

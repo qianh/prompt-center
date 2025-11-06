@@ -136,6 +136,7 @@ export const promptVersionsApi = {
   createVersion: async (promptId: string, data: {
     content: string;
     change_notes: string;
+    version_number?: number;
   }) => {
     const response = await api.post(`/api/v1/prompts/${promptId}/versions`, data);
     return response.data;
