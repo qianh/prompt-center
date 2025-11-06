@@ -109,7 +109,8 @@ export const VersionManager: React.FC<VersionManagerProps> = ({ prompt, onBack }
     try {
       setLoading(true);
       const response = await promptVersionsApi.getVersions(prompt.id);
-      setVersions(response.items || []);
+      // Backend returns array directly, not wrapped in {items: []}
+      setVersions(Array.isArray(response) ? response : response.items || []);
     } catch (error) {
       console.error('Failed to load versions:', error);
     } finally {

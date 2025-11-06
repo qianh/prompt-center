@@ -128,7 +128,8 @@ export const VersionedPromptEditor: React.FC<VersionedPromptEditorProps> = ({
     try {
       setVersionsLoading(true);
       const response = await promptVersionsApi.getVersions(prompt.id);
-      const versionList = response.items || [];
+      // Backend returns array directly, not wrapped in {items: []}
+      const versionList = Array.isArray(response) ? response : response.items || [];
       setVersions(versionList);
 
       // Select latest version by default
