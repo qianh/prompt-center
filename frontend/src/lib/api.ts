@@ -18,6 +18,8 @@ export interface Prompt {
   tags: string[];
   created_at: string;
   updated_at: string;
+  latest_version: number;
+  total_versions: number;
 }
 
 export interface PromptVersion {

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { PromptList } from '@/components/prompts/PromptList';
 import { PromptEditor } from '@/components/prompts/PromptEditor';
+import { VersionedPromptEditor } from '@/components/prompts/VersionedPromptEditor';
 import { VersionManager } from '@/components/versions/VersionManager';
 import { ComparisonDashboard } from '@/components/comparisons/ComparisonDashboard';
 import { NewComparisonForm } from '@/components/comparisons/NewComparisonForm';
@@ -67,9 +68,14 @@ function App() {
         );
 
       case 'editor':
-        return (
-          <PromptEditor
+        return selectedPrompt ? (
+          <VersionedPromptEditor
             prompt={selectedPrompt}
+            onSave={handleSavePrompt}
+            onCancel={handleCancelEditor}
+          />
+        ) : (
+          <PromptEditor
             onSave={handleSavePrompt}
             onCancel={handleCancelEditor}
           />

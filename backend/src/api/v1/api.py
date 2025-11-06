@@ -101,6 +101,11 @@ async def create_prompt(
 ):
     """Create a new prompt."""
     prompt = prompt_crud.create(db=db, obj_in=prompt_data)
+
+    # Get version info
+    versions = prompt_version_crud.get_versions(db, prompt.id)
+    latest_version = max([v.version_number for v in versions], default=0)
+
     return PromptResponse(
         id=prompt.id,
         title=prompt.title,
@@ -108,7 +113,9 @@ async def create_prompt(
         content=prompt.content,
         tags=prompt.tag_list,
         created_at=prompt.created_at,
-        updated_at=prompt.updated_at
+        updated_at=prompt.updated_at,
+        latest_version=latest_version,
+        total_versions=len(versions)
     )
 
 
@@ -121,6 +128,11 @@ async def get_prompt_by_id(
     prompt = prompt_crud.get(db=db, prompt_id=prompt_id)
     if not prompt:
         raise HTTPException(status_code=404, detail="Prompt not found")
+
+    # Get version info
+    versions = prompt_version_crud.get_versions(db, prompt.id)
+    latest_version = max([v.version_number for v in versions], default=0)
+
     return PromptResponse(
         id=prompt.id,
         title=prompt.title,
@@ -128,7 +140,9 @@ async def get_prompt_by_id(
         content=prompt.content,
         tags=prompt.tag_list,
         created_at=prompt.created_at,
-        updated_at=prompt.updated_at
+        updated_at=prompt.updated_at,
+        latest_version=latest_version,
+        total_versions=len(versions)
     )
 
 
@@ -144,6 +158,11 @@ async def update_prompt(
         raise HTTPException(status_code=404, detail="Prompt not found")
     
     updated_prompt = prompt_crud.update(db=db, db_obj=prompt, obj_in=prompt_data)
+
+    # Get version info
+    versions = prompt_version_crud.get_versions(db, updated_prompt.id)
+    latest_version = max([v.version_number for v in versions], default=0)
+
     return PromptResponse(
         id=updated_prompt.id,
         title=updated_prompt.title,
@@ -151,7 +170,9 @@ async def update_prompt(
         content=updated_prompt.content,
         tags=updated_prompt.tag_list,
         created_at=updated_prompt.created_at,
-        updated_at=updated_prompt.updated_at
+        updated_at=updated_prompt.updated_at,
+        latest_version=latest_version,
+        total_versions=len(versions)
     )
 
 

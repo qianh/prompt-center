@@ -123,14 +123,26 @@ export const PromptList: React.FC<PromptListProps> = ({
           <Card key={prompt.id} className="hover:shadow-md transition-shadow cursor-pointer">
             <CardHeader>
               <div className="flex justify-between items-start">
-                <div 
+                <div
                   className="flex-1"
                   onClick={() => onSelectPrompt(prompt)}
                 >
-                  <CardTitle className="text-lg">{prompt.title}</CardTitle>
-                  <CardDescription className="mt-2">
+                  <div className="flex items-center gap-2 mb-2">
+                    <CardTitle className="text-lg">{prompt.title}</CardTitle>
+                    {prompt.latest_version > 0 && (
+                      <span className="text-xs bg-purple-100 text-purple-800 px-2 py-0.5 rounded font-medium">
+                        v{prompt.latest_version}.0
+                      </span>
+                    )}
+                  </div>
+                  <CardDescription>
                     {prompt.description}
                   </CardDescription>
+                  {prompt.total_versions > 0 && (
+                    <div className="text-xs text-gray-500 mt-1">
+                      {prompt.total_versions} version{prompt.total_versions !== 1 ? 's' : ''}
+                    </div>
+                  )}
                 </div>
                 <div className="flex gap-1">
                   <Button
