@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Save, X, Plus, Tag } from 'lucide-react';
+import { Save, X, Plus, Tag, Zap } from 'lucide-react';
 import { promptsApi, Prompt } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { PromptTester } from './PromptTester';
 
 interface PromptEditorProps {
   prompt?: Prompt;
@@ -24,6 +25,7 @@ export const PromptEditor: React.FC<PromptEditorProps> = ({
   });
   const [newTag, setNewTag] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showTester, setShowTester] = useState(false);
 
   useEffect(() => {
     if (prompt) {
@@ -71,6 +73,15 @@ export const PromptEditor: React.FC<PromptEditorProps> = ({
       tags: prev.tags.filter(tag => tag !== tagToRemove)
     }));
   };
+
+  if (showTester) {
+    return (
+      <PromptTester
+        promptContent={formData.content}
+        onClose={() => setShowTester(false)}
+      />
+    );
+  }
 
   return (
     <Card className="w-full max-w-4xl mx-auto">
@@ -170,20 +181,31 @@ export const PromptEditor: React.FC<PromptEditorProps> = ({
           </div>
 
           {/* Actions */}
-          <div className="flex justify-end gap-3 pt-4 border-t">
-            <Button type="button" variant="outline" onClick={onCancel}>
-              Cancel
+          <div className="flex justify-between items-center pt-4 border-t">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setShowTester(true)}
+              disabled={!formData.content.trim()}
+            >
+              <Zap className="h-4 w-4 mr-2" />
+              Test with LLMs
             </Button>
-            <Button type="submit" disabled={loading}>
-              {loading ? (
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-              ) : (
-                <>
-                  <Save className="h-4 w-4 mr-2" />
-                  {prompt ? 'Update' : 'Create'}
-                </>
-              )}
-            </Button>
+            <div className="flex gap-3">
+              <Button type="button" variant="outline" onClick={onCancel}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={loading}>
+                {loading ? (
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                ) : (
+                  <>
+                    <Save className="h-4 w-4 mr-2" />
+                    {prompt ? 'Update' : 'Create'}
+                  </>
+                )}
+              </Button>
+            </div>
           </div>
         </form>
       </CardContent>

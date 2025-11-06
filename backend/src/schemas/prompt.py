@@ -33,6 +33,8 @@ class PromptResponse(PromptBase):
     id: str
     created_at: datetime
     updated_at: datetime
+    latest_version: int = 0
+    total_versions: int = 0
 
     class Config:
         from_attributes = True

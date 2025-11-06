@@ -63,6 +63,7 @@ class LLMConfigCRUD:
             provider=obj_in.provider,
             api_key=obj_in.api_key,
             model=obj_in.model,
+            base_url=obj_in.base_url,
             temperature=str(obj_in.temperature),
             max_tokens=obj_in.max_tokens,
             is_active=obj_in.active
@@ -81,10 +82,16 @@ class LLMConfigCRUD:
     ) -> LLMConfig:
         """Update an LLM config."""
         update_data = obj_in.model_dump(exclude_unset=True)
-        
+
+        # Map schema fields to model fields
         for field, value in update_data.items():
-            setattr(db_obj, field, value)
-        
+            if field == 'active':
+                db_obj.is_active = value
+            elif field == 'temperature':
+                db_obj.temperature = str(value)
+            else:
+                setattr(db_obj, field, value)
+
         db.add(db_obj)
         db.commit()
         db.refresh(db_obj)

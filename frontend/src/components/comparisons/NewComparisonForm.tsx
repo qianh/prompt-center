@@ -38,9 +38,9 @@ export const NewComparisonForm: React.FC<NewComparisonFormProps> = ({
       // Load prompts and LLM configs
       const [promptsResponse, configsResponse] = await Promise.all([
         fetch('http://localhost:8000/api/v1/prompts'),
-        llmConfigsApi.getConfigs(),
+        llmConfigsApi.getConfigs({ active: true }), // Only load active configs
       ]);
-      
+
       const promptsData = await promptsResponse.json();
       setPrompts(promptsData.items || []);
       setLlmConfigs(configsResponse.items || []);
@@ -325,21 +325,16 @@ export const NewComparisonForm: React.FC<NewComparisonFormProps> = ({
                         className="mr-3"
                       />
                       <div className="flex-1">
-                        <div className="font-medium">{config.name}</div>
-                        <div className="text-sm text-gray-600">
-                          {config.provider} - {config.model}
-                        </div>
+                        <div className="font-medium capitalize">{config.provider} - {config.model}</div>
+                        {config.base_url && (
+                          <div className="text-sm text-gray-600 truncate" title={config.base_url}>
+                            {config.base_url}
+                          </div>
+                        )}
                         <div className="text-xs text-gray-500">
                           Temp: {config.temperature}, Max Tokens: {config.max_tokens}
                         </div>
                       </div>
-                      <span className={`px-2 py-1 text-xs rounded-full ${
-                        config.is_active
-                          ? 'bg-green-100 text-green-800'
-                          : 'bg-gray-100 text-gray-600'
-                      }`}>
-                        {config.is_active ? 'Active' : 'Inactive'}
-                      </span>
                     </label>
                   ))}
                 </div>

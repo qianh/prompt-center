@@ -16,6 +16,15 @@ class PromptVersionCRUD:
         """Get a prompt version by ID."""
         return db.query(PromptVersion).filter(PromptVersion.id == version_id).first()
 
+    def get_versions(self, db: Session, prompt_id: str) -> List[PromptVersion]:
+        """Get all versions for a specific prompt."""
+        return (
+            db.query(PromptVersion)
+            .filter(PromptVersion.prompt_id == prompt_id)
+            .order_by(PromptVersion.version_number.desc())
+            .all()
+        )
+
     def get_by_prompt(
         self,
         db: Session,

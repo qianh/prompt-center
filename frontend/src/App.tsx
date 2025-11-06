@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
 import { PromptList } from '@/components/prompts/PromptList';
 import { PromptEditor } from '@/components/prompts/PromptEditor';
+import { VersionedPromptEditor } from '@/components/prompts/VersionedPromptEditor';
 import { VersionManager } from '@/components/versions/VersionManager';
 import { ComparisonDashboard } from '@/components/comparisons/ComparisonDashboard';
 import { NewComparisonForm } from '@/components/comparisons/NewComparisonForm';
+import { LLMSettings } from '@/components/settings/LLMSettings';
 import { Prompt } from '@/lib/api';
 
-type View = 'prompts' | 'editor' | 'versions' | 'comparisons' | 'new-comparison';
+type View = 'prompts' | 'editor' | 'versions' | 'comparisons' | 'new-comparison' | 'settings';
 
 function App() {
   const [currentView, setCurrentView] = useState<View>('prompts');
@@ -66,9 +68,14 @@ function App() {
         );
 
       case 'editor':
-        return (
-          <PromptEditor
+        return selectedPrompt ? (
+          <VersionedPromptEditor
             prompt={selectedPrompt}
+            onSave={handleSavePrompt}
+            onCancel={handleCancelEditor}
+          />
+        ) : (
+          <PromptEditor
             onSave={handleSavePrompt}
             onCancel={handleCancelEditor}
           />
@@ -100,6 +107,9 @@ function App() {
             onCreated={handleComparisonCreated}
           />
         );
+
+      case 'settings':
+        return <LLMSettings />;
 
       default:
         return null;
@@ -135,6 +145,16 @@ function App() {
                 }`}
               >
                 Comparisons
+              </button>
+              <button
+                onClick={() => setCurrentView('settings')}
+                className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                  currentView === 'settings'
+                    ? 'bg-blue-100 text-blue-700'
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                Settings
               </button>
             </div>
           </div>
