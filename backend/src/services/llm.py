@@ -635,15 +635,25 @@ class LLMService:
         def version_sort_key(result):
             try:
                 version_value = result.prompt_version.version_number
+                # Handle None
+                if version_value is None:
+                    return 0.0
                 # Handle both integer (old) and string (new) version numbers
                 if isinstance(version_value, int):
                     return float(version_value)
-                else:
+                elif isinstance(version_value, str):
                     return float(version_value)
-            except (ValueError, TypeError):
+                else:
+                    return 0.0
+            except (ValueError, TypeError, AttributeError) as e:
+                print(f"Error sorting comparison result: {e}, version_number={version_value}")
                 return 0.0
 
-        results = sorted(results, key=version_sort_key)
+        try:
+            results = sorted(results, key=version_sort_key)
+        except Exception as e:
+            print(f"Failed to sort comparison results: {e}")
+            # Continue with unsorted results
 
         return [
             {

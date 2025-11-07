@@ -26,18 +26,34 @@ class PromptVersionCRUD:
             .all()
         )
 
+        if not versions:
+            return []
+
         # Sort by version number numerically (handles both int and str)
         def version_sort_key(v):
             try:
                 version_value = v.version_number
+                # Handle None
+                if version_value is None:
+                    return 0.0
+                # Handle both integer (old) and string (new) version numbers
                 if isinstance(version_value, int):
                     return float(version_value)
-                else:
+                elif isinstance(version_value, str):
                     return float(version_value)
-            except (ValueError, TypeError):
+                else:
+                    return 0.0
+            except (ValueError, TypeError, AttributeError) as e:
+                # Log the error for debugging
+                print(f"Error sorting version {v.id}: {e}, version_number={version_value}")
                 return 0.0
 
-        return sorted(versions, key=version_sort_key, reverse=True)
+        try:
+            return sorted(versions, key=version_sort_key, reverse=True)
+        except Exception as e:
+            # Fallback: return unsorted if sorting fails
+            print(f"Failed to sort versions: {e}")
+            return versions
 
     def get_by_prompt(
         self,
@@ -56,21 +72,36 @@ class PromptVersionCRUD:
             .all()
         )
 
+        if not versions:
+            return []
+
         # Sort by version number numerically (handles both int and str)
         def version_sort_key(v):
             try:
                 version_value = v.version_number
+                # Handle None
+                if version_value is None:
+                    return 0.0
+                # Handle both integer (old) and string (new) version numbers
                 if isinstance(version_value, int):
                     return float(version_value)
-                else:
+                elif isinstance(version_value, str):
                     return float(version_value)
-            except (ValueError, TypeError):
+                else:
+                    return 0.0
+            except (ValueError, TypeError, AttributeError) as e:
+                # Log the error for debugging
+                print(f"Error sorting version {v.id}: {e}, version_number={version_value}")
                 return 0.0
 
-        sorted_versions = sorted(versions, key=version_sort_key, reverse=True)
-
-        # Apply skip and limit
-        return sorted_versions[skip:skip + limit]
+        try:
+            sorted_versions = sorted(versions, key=version_sort_key, reverse=True)
+            # Apply skip and limit
+            return sorted_versions[skip:skip + limit]
+        except Exception as e:
+            # Fallback: return unsorted if sorting fails
+            print(f"Failed to sort versions: {e}")
+            return versions[skip:skip + limit]
 
     def get_next_version_number(self, db: Session, prompt_id: str) -> str:
         """Get the next version number for a prompt.
