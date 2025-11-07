@@ -18,55 +18,48 @@ depends_on = None
 
 def upgrade() -> None:
     # Change version_number from Integer to String(50)
-    # SQLite doesn't support ALTER COLUMN, so we need to:
-    # 1. Create new column
-    # 2. Copy data
-    # 3. Drop old column
-    # 4. Rename new column
+    # For SQLite, we need to use batch operations to recreate the table
 
-    # Add new column
-    op.add_column('prompt_versions', sa.Column('version_number_new', sa.String(50), nullable=True))
+    with op.batch_alter_table('prompt_versions', schema=None) as batch_op:
+        # Add new column
+        batch_op.add_column(sa.Column('version_number_new', sa.String(50), nullable=True))
 
     # Copy data from old column to new column, converting int to string with ".0" format
     op.execute("""
         UPDATE prompt_versions
         SET version_number_new = CAST(version_number AS TEXT) || '.0'
+        WHERE version_number IS NOT NULL
     """)
 
-    # Make the new column non-nullable
-    op.alter_column('prompt_versions', 'version_number_new', nullable=False)
-
-    # Drop the old column (this also drops the unique constraint)
-    op.drop_constraint('unique_prompt_version', 'prompt_versions', type_='unique')
-    op.drop_column('prompt_versions', 'version_number')
-
-    # Rename new column to version_number
-    op.alter_column('prompt_versions', 'version_number_new', new_column_name='version_number')
-
-    # Re-create the unique constraint
-    op.create_unique_constraint('unique_prompt_version', 'prompt_versions', ['prompt_id', 'version_number'])
+    with op.batch_alter_table('prompt_versions', schema=None) as batch_op:
+        # Drop the unique constraint and old column
+        batch_op.drop_constraint('unique_prompt_version', type_='unique')
+        batch_op.drop_column('version_number')
+        # Add the new column as version_number
+        batch_op.alter_column('version_number_new', new_column_name='version_number', nullable=False)
+        # Re-create the unique constraint
+        batch_op.create_unique_constraint('unique_prompt_version', ['prompt_id', 'version_number'])
 
 
 def downgrade() -> None:
-    # Reverse the migration
-    # Add integer column
-    op.add_column('prompt_versions', sa.Column('version_number_new', sa.Integer(), nullable=True))
+    # Reverse the migration using batch operations for SQLite compatibility
+
+    with op.batch_alter_table('prompt_versions', schema=None) as batch_op:
+        # Add integer column
+        batch_op.add_column(sa.Column('version_number_new', sa.Integer(), nullable=True))
 
     # Copy data, converting string to integer (strip ".0" if present)
     op.execute("""
         UPDATE prompt_versions
         SET version_number_new = CAST(REPLACE(version_number, '.0', '') AS INTEGER)
+        WHERE version_number IS NOT NULL
     """)
 
-    # Make the new column non-nullable
-    op.alter_column('prompt_versions', 'version_number_new', nullable=False)
-
-    # Drop the old column
-    op.drop_constraint('unique_prompt_version', 'prompt_versions', type_='unique')
-    op.drop_column('prompt_versions', 'version_number')
-
-    # Rename new column to version_number
-    op.alter_column('prompt_versions', 'version_number_new', new_column_name='version_number')
-
-    # Re-create the unique constraint
-    op.create_unique_constraint('unique_prompt_version', 'prompt_versions', ['prompt_id', 'version_number'])
+    with op.batch_alter_table('prompt_versions', schema=None) as batch_op:
+        # Drop the unique constraint and old column
+        batch_op.drop_constraint('unique_prompt_version', type_='unique')
+        batch_op.drop_column('version_number')
+        # Rename new column to version_number
+        batch_op.alter_column('version_number_new', new_column_name='version_number', nullable=False)
+        # Re-create the unique constraint
+        batch_op.create_unique_constraint('unique_prompt_version', ['prompt_id', 'version_number'])
