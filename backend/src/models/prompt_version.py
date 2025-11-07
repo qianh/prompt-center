@@ -20,9 +20,13 @@ class PromptVersion(BaseModel):
     
     # Relationships
     prompt = relationship("Prompt", back_populates="versions")
-    
+
     # Comparison relationships
-    comparison_executions = relationship("ComparisonPromptVersion", back_populates="prompt_version")
+    comparison_executions = relationship(
+        "ComparisonPromptVersion",
+        back_populates="prompt_version",
+        cascade="all, delete-orphan"
+    )
     
     __table_args__ = (
         UniqueConstraint('prompt_id', 'version_number', name='unique_prompt_version'),

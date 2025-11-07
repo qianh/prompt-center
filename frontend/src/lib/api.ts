@@ -127,12 +127,12 @@ export const promptVersionsApi = {
     const response = await api.get(`/api/v1/prompts/${promptId}/versions`);
     return response.data;
   },
-  
+
   getVersion: async (promptId: string, versionId: string) => {
     const response = await api.get(`/api/v1/prompts/${promptId}/versions/${versionId}`);
     return response.data;
   },
-  
+
   createVersion: async (promptId: string, data: {
     content: string;
     change_notes: string;
@@ -141,7 +141,19 @@ export const promptVersionsApi = {
     const response = await api.post(`/api/v1/prompts/${promptId}/versions`, data);
     return response.data;
   },
-  
+
+  updateVersion: async (promptId: string, versionId: string, data: {
+    content?: string;
+    change_notes?: string;
+  }) => {
+    const response = await api.put(`/api/v1/prompts/${promptId}/versions/${versionId}`, data);
+    return response.data;
+  },
+
+  deleteVersion: async (promptId: string, versionId: string) => {
+    await api.delete(`/api/v1/prompts/${promptId}/versions/${versionId}`);
+  },
+
   compareVersions: async (promptId: string, versionA: string, versionB: string) => {
     const response = await api.get(
       `/api/v1/prompts/${promptId}/versions/compare`,
