@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Clock, GitBranch, Eye, GitCompare, ArrowLeft, Zap } from 'lucide-react';
+import { Clock, GitBranch, Eye, GitCompare, ArrowLeft, Zap, Edit } from 'lucide-react';
 import { promptVersionsApi, PromptVersion } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,6 +9,7 @@ import { VersionLLMCompare } from './VersionLLMCompare';
 interface VersionManagerProps {
   prompt: Prompt;
   onBack: () => void;
+  onEditVersion?: (version: PromptVersion) => void;
 }
 
 interface VersionCompareProps {
@@ -89,7 +90,7 @@ const VersionCompare: React.FC<VersionCompareProps> = ({
   );
 };
 
-export const VersionManager: React.FC<VersionManagerProps> = ({ prompt, onBack }) => {
+export const VersionManager: React.FC<VersionManagerProps> = ({ prompt, onBack, onEditVersion }) => {
   const [versions, setVersions] = useState<PromptVersion[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCompare, setShowCompare] = useState(false);
@@ -234,6 +235,16 @@ export const VersionManager: React.FC<VersionManagerProps> = ({ prompt, onBack }
                   </div>
                 </div>
                 <div className="flex gap-2">
+                  {onEditVersion && (
+                    <Button
+                      variant="default"
+                      size="sm"
+                      onClick={() => onEditVersion(version)}
+                    >
+                      <Edit className="h-4 w-4 mr-2" />
+                      Edit / Create New Version
+                    </Button>
+                  )}
                   {index > 0 && (
                     <Button
                       variant="outline"
@@ -244,10 +255,6 @@ export const VersionManager: React.FC<VersionManagerProps> = ({ prompt, onBack }
                       Compare with Latest
                     </Button>
                   )}
-                  <Button variant="outline" size="sm">
-                    <Eye className="h-4 w-4 mr-2" />
-                    View
-                  </Button>
                 </div>
               </div>
             </CardHeader>

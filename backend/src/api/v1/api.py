@@ -132,8 +132,17 @@ async def create_prompt(
     prompt_data: PromptCreate,
     db: Session = Depends(get_db)
 ):
-    """Create a new prompt."""
+    """Create a new prompt with initial version 1.0."""
     prompt = prompt_crud.create(db=db, obj_in=prompt_data)
+
+    # Automatically create version 1.0 with the initial content
+    from src.schemas.prompt_version import PromptVersionCreate
+    initial_version = PromptVersionCreate(
+        content=prompt_data.content,
+        change_notes="Initial version",
+        version_number="1.0"
+    )
+    prompt_version_crud.create(db=db, obj_in=initial_version, prompt_id=prompt.id)
 
     # Get version info
     versions = prompt_version_crud.get_versions(db, prompt.id)

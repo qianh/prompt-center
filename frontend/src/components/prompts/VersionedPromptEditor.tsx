@@ -8,6 +8,7 @@ import { PromptTester } from './PromptTester';
 
 interface VersionedPromptEditorProps {
   prompt: Prompt;
+  initialVersion?: PromptVersion;
   onSave: (prompt: Prompt) => void;
   onCancel: () => void;
 }
@@ -146,6 +147,7 @@ const SaveConfirmDialog: React.FC<SaveConfirmDialogProps> = ({
 
 export const VersionedPromptEditor: React.FC<VersionedPromptEditorProps> = ({
   prompt,
+  initialVersion,
   onSave,
   onCancel,
 }) => {
@@ -181,8 +183,14 @@ export const VersionedPromptEditor: React.FC<VersionedPromptEditorProps> = ({
       const versionList = Array.isArray(response) ? response : response.items || [];
       setVersions(versionList);
 
-      // Select latest version by default
-      if (versionList.length > 0) {
+      // If initialVersion is provided, use it; otherwise select latest version
+      if (initialVersion) {
+        setSelectedVersionId(initialVersion.id);
+        setFormData(prev => ({
+          ...prev,
+          content: initialVersion.content
+        }));
+      } else if (versionList.length > 0) {
         const latest = versionList[0]; // Assuming sorted by version desc
         setSelectedVersionId(latest.id);
         setFormData(prev => ({

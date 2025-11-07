@@ -6,41 +6,66 @@ import { VersionManager } from '@/components/versions/VersionManager';
 import { ComparisonDashboard } from '@/components/comparisons/ComparisonDashboard';
 import { NewComparisonForm } from '@/components/comparisons/NewComparisonForm';
 import { LLMSettings } from '@/components/settings/LLMSettings';
-import { Prompt } from '@/lib/api';
+import { Prompt, PromptVersion } from '@/lib/api';
 
 type View = 'prompts' | 'editor' | 'versions' | 'comparisons' | 'new-comparison' | 'settings';
 
 function App() {
   const [currentView, setCurrentView] = useState<View>('prompts');
   const [selectedPrompt, setSelectedPrompt] = useState<Prompt | undefined>();
+  const [selectedVersion, setSelectedVersion] = useState<PromptVersion | undefined>();
 
   const handleSelectPrompt = (prompt: Prompt) => {
     setSelectedPrompt(prompt);
+    setSelectedVersion(undefined);
     setCurrentView('versions');
   };
 
   const handleEditPrompt = (prompt: Prompt) => {
     setSelectedPrompt(prompt);
+    setSelectedVersion(undefined);
+    setCurrentView('editor');
+  };
+
+  const handleEditVersion = (version: PromptVersion) => {
+    setSelectedVersion(version);
     setCurrentView('editor');
   };
 
   const handleCreatePrompt = () => {
     setSelectedPrompt(undefined);
+    setSelectedVersion(undefined);
     setCurrentView('editor');
   };
 
-  const handleSavePrompt = () => {
+  const handleSavePrompt = (prompt: Prompt) => {
+    // After saving, go back to version list for this prompt
+    setSelectedPrompt(prompt);
+    setSelectedVersion(undefined);
+    setCurrentView('versions');
+  };
+
+  const handleSaveNewPrompt = (prompt: Prompt) => {
+    // After creating new prompt, go back to prompts list
     setSelectedPrompt(undefined);
+    setSelectedVersion(undefined);
     setCurrentView('prompts');
   };
 
   const handleCancelEditor = () => {
-    setSelectedPrompt(undefined);
-    setCurrentView('prompts');
+    if (selectedPrompt) {
+      // If we were editing a version, go back to version list
+      setCurrentView('versions');
+    } else {
+      // If we were creating new prompt, go back to prompt list
+      setCurrentView('prompts');
+    }
+    setSelectedVersion(undefined);
   };
 
   const handleBackToPrompts = () => {
     setSelectedPrompt(undefined);
+    setSelectedVersion(undefined);
     setCurrentView('prompts');
   };
 
@@ -71,12 +96,13 @@ function App() {
         return selectedPrompt ? (
           <VersionedPromptEditor
             prompt={selectedPrompt}
+            initialVersion={selectedVersion}
             onSave={handleSavePrompt}
             onCancel={handleCancelEditor}
           />
         ) : (
           <PromptEditor
-            onSave={handleSavePrompt}
+            onSave={handleSaveNewPrompt}
             onCancel={handleCancelEditor}
           />
         );
@@ -86,6 +112,7 @@ function App() {
           <VersionManager
             prompt={selectedPrompt}
             onBack={handleBackToPrompts}
+            onEditVersion={handleEditVersion}
           />
         ) : null;
 
