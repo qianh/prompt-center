@@ -1087,3 +1087,57 @@ async def test_llm_connection(
             "error": str(e),
             "provider": provider
         }
+
+
+# Maintenance endpoints
+@router.post("/maintenance/create-initial-versions")
+async def create_initial_versions_for_all_prompts(db: Session = Depends(get_db)):
+    """
+    Create version 1.0 for all prompts that don't have any versions yet.
+    This is a maintenance endpoint for prompts created before auto-version feature.
+    """
+    from src.models.prompt import Prompt
+
+    try:
+        # Get all prompts
+        prompts = db.query(Prompt).all()
+
+        created_count = 0
+        skipped_count = 0
+        errors = []
+
+        for prompt in prompts:
+            # Check if prompt has any versions
+            existing_versions = prompt_version_crud.get_versions(db, prompt.id)
+
+            if existing_versions:
+                skipped_count += 1
+                continue
+
+            # Create initial version 1.0
+            try:
+                from src.schemas.prompt_version import PromptVersionCreate
+                initial_version = PromptVersionCreate(
+                    content=prompt.content,
+                    change_notes="Initial version (auto-created)",
+                    version_number="1.0"
+                )
+                prompt_version_crud.create(db=db, obj_in=initial_version, prompt_id=prompt.id)
+                created_count += 1
+            except Exception as e:
+                errors.append({
+                    "prompt_id": prompt.id,
+                    "prompt_title": prompt.title,
+                    "error": str(e)
+                })
+
+        return {
+            "success": True,
+            "total_prompts": len(prompts),
+            "created": created_count,
+            "skipped": skipped_count,
+            "errors": errors
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to create initial versions: {str(e)}")
