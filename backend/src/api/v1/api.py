@@ -25,7 +25,7 @@ router = APIRouter(prefix="/api/v1", tags=["api"])
 # Helper functions
 def get_latest_version_number(versions: list) -> str:
     """Get the latest version number from a list of versions.
-    Handles string version numbers by parsing them as floats for comparison.
+    Handles both string and integer version numbers for backward compatibility.
     """
     if not versions:
         return "0.0"
@@ -35,10 +35,20 @@ def get_latest_version_number(versions: list) -> str:
 
     for v in versions:
         try:
-            num = float(v.version_number)
+            # Handle both integer (old) and string (new) version numbers
+            version_value = v.version_number
+            if isinstance(version_value, int):
+                # Convert integer to string format for consistency
+                num = float(version_value)
+                version_str = f"{version_value}.0"
+            else:
+                # Already a string
+                num = float(version_value)
+                version_str = str(version_value)
+
             if num > max_num:
                 max_num = num
-                max_version = v.version_number
+                max_version = version_str
         except (ValueError, TypeError, AttributeError):
             continue
 

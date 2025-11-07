@@ -44,7 +44,9 @@ class PromptVersionCRUD:
         )
 
     def get_next_version_number(self, db: Session, prompt_id: str) -> str:
-        """Get the next version number for a prompt."""
+        """Get the next version number for a prompt.
+        Handles both integer (old DB schema) and string (new DB schema) version numbers.
+        """
         versions = (
             db.query(PromptVersion.version_number)
             .filter(PromptVersion.prompt_id == prompt_id)
@@ -56,10 +58,14 @@ class PromptVersionCRUD:
 
         # Parse all version numbers and find the maximum
         max_num = 0.0
-        for (version_str,) in versions:
+        for (version_value,) in versions:
             try:
-                # Try to parse as float
-                num = float(version_str)
+                # Handle both integer (old) and string (new) version numbers
+                if isinstance(version_value, int):
+                    num = float(version_value)
+                else:
+                    num = float(version_value)
+
                 if num > max_num:
                     max_num = num
             except (ValueError, TypeError):
