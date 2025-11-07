@@ -450,7 +450,7 @@ async def delete_prompt_version(
 @router.post("/prompts/{prompt_id}/versions/revert")
 async def revert_prompt_to_version(
     prompt_id: str,
-    version_number: int,
+    version_number: str,
     change_notes: Optional[str] = None,
     db: Session = Depends(get_db)
 ):

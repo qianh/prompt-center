@@ -17,13 +17,27 @@ class PromptVersionCRUD:
         return db.query(PromptVersion).filter(PromptVersion.id == version_id).first()
 
     def get_versions(self, db: Session, prompt_id: str) -> List[PromptVersion]:
-        """Get all versions for a specific prompt."""
-        return (
+        """Get all versions for a specific prompt.
+        Sorted by version number descending (numerically, not lexically).
+        """
+        versions = (
             db.query(PromptVersion)
             .filter(PromptVersion.prompt_id == prompt_id)
-            .order_by(PromptVersion.version_number.desc())
             .all()
         )
+
+        # Sort by version number numerically (handles both int and str)
+        def version_sort_key(v):
+            try:
+                version_value = v.version_number
+                if isinstance(version_value, int):
+                    return float(version_value)
+                else:
+                    return float(version_value)
+            except (ValueError, TypeError):
+                return 0.0
+
+        return sorted(versions, key=version_sort_key, reverse=True)
 
     def get_by_prompt(
         self,
@@ -33,15 +47,30 @@ class PromptVersionCRUD:
         skip: int = 0,
         limit: int = 20
     ) -> List[PromptVersion]:
-        """Get versions for a specific prompt."""
-        return (
+        """Get versions for a specific prompt.
+        Sorted by version number descending (numerically, not lexically).
+        """
+        versions = (
             db.query(PromptVersion)
             .filter(PromptVersion.prompt_id == prompt_id)
-            .order_by(PromptVersion.version_number.desc())
-            .offset(skip)
-            .limit(limit)
             .all()
         )
+
+        # Sort by version number numerically (handles both int and str)
+        def version_sort_key(v):
+            try:
+                version_value = v.version_number
+                if isinstance(version_value, int):
+                    return float(version_value)
+                else:
+                    return float(version_value)
+            except (ValueError, TypeError):
+                return 0.0
+
+        sorted_versions = sorted(versions, key=version_sort_key, reverse=True)
+
+        # Apply skip and limit
+        return sorted_versions[skip:skip + limit]
 
     def get_next_version_number(self, db: Session, prompt_id: str) -> str:
         """Get the next version number for a prompt.

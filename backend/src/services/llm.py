@@ -628,10 +628,23 @@ class LLMService:
             db.query(ComparisonPromptVersion)
             .join(PromptVersion)
             .filter(ComparisonPromptVersion.comparison_id == comparison_id)
-            .order_by(PromptVersion.version_number)
             .all()
         )
-        
+
+        # Sort by version number (handle both int and str types, compare numerically)
+        def version_sort_key(result):
+            try:
+                version_value = result.prompt_version.version_number
+                # Handle both integer (old) and string (new) version numbers
+                if isinstance(version_value, int):
+                    return float(version_value)
+                else:
+                    return float(version_value)
+            except (ValueError, TypeError):
+                return 0.0
+
+        results = sorted(results, key=version_sort_key)
+
         return [
             {
                 "version_id": result.prompt_version_id,
