@@ -18,14 +18,14 @@ export interface Prompt {
   tags: string[];
   created_at: string;
   updated_at: string;
-  latest_version: number;
+  latest_version: string;  // Changed to string to support decimal versions
   total_versions: number;
 }
 
 export interface PromptVersion {
   id: string;
   prompt_id: string;
-  version_number: number;
+  version_number: string;  // Changed to string to support decimal versions like "2.5"
   content: string;
   change_notes: string;
   created_at: string;
@@ -127,20 +127,33 @@ export const promptVersionsApi = {
     const response = await api.get(`/api/v1/prompts/${promptId}/versions`);
     return response.data;
   },
-  
+
   getVersion: async (promptId: string, versionId: string) => {
     const response = await api.get(`/api/v1/prompts/${promptId}/versions/${versionId}`);
     return response.data;
   },
-  
+
   createVersion: async (promptId: string, data: {
     content: string;
     change_notes: string;
+    version_number?: string;  // Changed to string to support decimal versions
   }) => {
     const response = await api.post(`/api/v1/prompts/${promptId}/versions`, data);
     return response.data;
   },
-  
+
+  updateVersion: async (promptId: string, versionId: string, data: {
+    content?: string;
+    change_notes?: string;
+  }) => {
+    const response = await api.put(`/api/v1/prompts/${promptId}/versions/${versionId}`, data);
+    return response.data;
+  },
+
+  deleteVersion: async (promptId: string, versionId: string) => {
+    await api.delete(`/api/v1/prompts/${promptId}/versions/${versionId}`);
+  },
+
   compareVersions: async (promptId: string, versionA: string, versionB: string) => {
     const response = await api.get(
       `/api/v1/prompts/${promptId}/versions/compare`,

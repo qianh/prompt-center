@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Clock, GitBranch, Eye, GitCompare, ArrowLeft, Zap } from 'lucide-react';
+import { Clock, GitBranch, Eye, GitCompare, ArrowLeft, Zap, Edit, Trash2 } from 'lucide-react';
 import { promptVersionsApi, PromptVersion } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,6 +9,7 @@ import { VersionLLMCompare } from './VersionLLMCompare';
 interface VersionManagerProps {
   prompt: Prompt;
   onBack: () => void;
+  onEditVersion?: (version: PromptVersion) => void;
 }
 
 interface VersionCompareProps {
@@ -17,6 +18,49 @@ interface VersionCompareProps {
   comparison: any;
   onClose: () => void;
 }
+
+interface DeleteConfirmDialogProps {
+  version: PromptVersion;
+  onConfirm: () => void;
+  onCancel: () => void;
+}
+
+const DeleteConfirmDialog: React.FC<DeleteConfirmDialogProps> = ({
+  version,
+  onConfirm,
+  onCancel,
+}) => {
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <Card className="w-full max-w-md">
+        <CardHeader>
+          <CardTitle className="text-red-600">Delete Version</CardTitle>
+          <CardDescription>
+            Are you sure you want to delete Version {version.version_number}?
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-md">
+              <p className="text-sm text-yellow-800">
+                <strong>Warning:</strong> This action cannot be undone. The version history will be permanently removed.
+              </p>
+            </div>
+            <div className="flex justify-end gap-3 pt-4 border-t">
+              <Button variant="outline" onClick={onCancel}>
+                Cancel
+              </Button>
+              <Button variant="destructive" onClick={onConfirm}>
+                <Trash2 className="h-4 w-4 mr-2" />
+                Delete
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+};
 
 const VersionCompare: React.FC<VersionCompareProps> = ({
   versionA,
@@ -89,7 +133,7 @@ const VersionCompare: React.FC<VersionCompareProps> = ({
   );
 };
 
-export const VersionManager: React.FC<VersionManagerProps> = ({ prompt, onBack }) => {
+export const VersionManager: React.FC<VersionManagerProps> = ({ prompt, onBack, onEditVersion }) => {
   const [versions, setVersions] = useState<PromptVersion[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCompare, setShowCompare] = useState(false);
@@ -100,6 +144,8 @@ export const VersionManager: React.FC<VersionManagerProps> = ({ prompt, onBack }
   } | null>(null);
   const [showLLMCompare, setShowLLMCompare] = useState(false);
   const [selectedVersions, setSelectedVersions] = useState<string[]>([]);
+  const [versionToDelete, setVersionToDelete] = useState<PromptVersion | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     loadVersions();
@@ -109,7 +155,8 @@ export const VersionManager: React.FC<VersionManagerProps> = ({ prompt, onBack }
     try {
       setLoading(true);
       const response = await promptVersionsApi.getVersions(prompt.id);
-      setVersions(response.items || []);
+      // Backend returns array directly, not wrapped in {items: []}
+      setVersions(Array.isArray(response) ? response : response.items || []);
     } catch (error) {
       console.error('Failed to load versions:', error);
     } finally {
@@ -146,6 +193,29 @@ export const VersionManager: React.FC<VersionManagerProps> = ({ prompt, onBack }
   const handleStartLLMCompare = () => {
     if (selectedVersions.length >= 2) {
       setShowLLMCompare(true);
+    }
+  };
+
+  const handleDeleteVersion = async () => {
+    if (!versionToDelete) return;
+
+    try {
+      setDeleting(true);
+      await promptVersionsApi.deleteVersion(prompt.id, versionToDelete.id);
+
+      // Remove from selected versions if it was selected
+      setSelectedVersions(prev => prev.filter(id => id !== versionToDelete.id));
+
+      // Reload versions list
+      await loadVersions();
+
+      // Close dialog
+      setVersionToDelete(null);
+    } catch (error) {
+      console.error('Failed to delete version:', error);
+      alert('Failed to delete version. Please try again.');
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -233,6 +303,16 @@ export const VersionManager: React.FC<VersionManagerProps> = ({ prompt, onBack }
                   </div>
                 </div>
                 <div className="flex gap-2">
+                  {onEditVersion && (
+                    <Button
+                      variant="default"
+                      size="sm"
+                      onClick={() => onEditVersion(version)}
+                    >
+                      <Edit className="h-4 w-4 mr-2" />
+                      Edit / Create New Version
+                    </Button>
+                  )}
                   {index > 0 && (
                     <Button
                       variant="outline"
@@ -243,9 +323,13 @@ export const VersionManager: React.FC<VersionManagerProps> = ({ prompt, onBack }
                       Compare with Latest
                     </Button>
                   )}
-                  <Button variant="outline" size="sm">
-                    <Eye className="h-4 w-4 mr-2" />
-                    View
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setVersionToDelete(version)}
+                    className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                  >
+                    <Trash2 className="h-4 w-4" />
                   </Button>
                 </div>
               </div>
@@ -283,6 +367,15 @@ export const VersionManager: React.FC<VersionManagerProps> = ({ prompt, onBack }
             This prompt doesn't have any version history yet.
           </p>
         </div>
+      )}
+
+      {/* Delete Confirmation Dialog */}
+      {versionToDelete && (
+        <DeleteConfirmDialog
+          version={versionToDelete}
+          onConfirm={handleDeleteVersion}
+          onCancel={() => setVersionToDelete(null)}
+        />
       )}
     </div>
   );

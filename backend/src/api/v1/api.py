@@ -22,6 +22,39 @@ from src.schemas import (
 router = APIRouter(prefix="/api/v1", tags=["api"])
 
 
+# Helper functions
+def get_latest_version_number(versions: list) -> str:
+    """Get the latest version number from a list of versions.
+    Handles both string and integer version numbers for backward compatibility.
+    """
+    if not versions:
+        return "0.0"
+
+    max_version = "0.0"
+    max_num = 0.0
+
+    for v in versions:
+        try:
+            # Handle both integer (old) and string (new) version numbers
+            version_value = v.version_number
+            if isinstance(version_value, int):
+                # Convert integer to string format for consistency
+                num = float(version_value)
+                version_str = f"{version_value}.0"
+            else:
+                # Already a string
+                num = float(version_value)
+                version_str = str(version_value)
+
+            if num > max_num:
+                max_num = num
+                max_version = version_str
+        except (ValueError, TypeError, AttributeError):
+            continue
+
+    return max_version
+
+
 # Request models
 class LLMTestRequest(PydanticBaseModel):
     llm_config_id: str
@@ -69,7 +102,7 @@ async def get_prompts(
     for prompt in prompts:
         # Get version info
         versions = prompt_version_crud.get_versions(db, prompt.id)
-        latest_version = max([v.version_number for v in versions], default=0)
+        latest_version = get_latest_version_number(versions)
 
         items.append(PromptResponse(
             id=prompt.id,
@@ -99,12 +132,21 @@ async def create_prompt(
     prompt_data: PromptCreate,
     db: Session = Depends(get_db)
 ):
-    """Create a new prompt."""
+    """Create a new prompt with initial version 1.0."""
     prompt = prompt_crud.create(db=db, obj_in=prompt_data)
+
+    # Automatically create version 1.0 with the initial content
+    from src.schemas.prompt_version import PromptVersionCreate
+    initial_version = PromptVersionCreate(
+        content=prompt_data.content,
+        change_notes="Initial version",
+        version_number="1.0"
+    )
+    prompt_version_crud.create(db=db, obj_in=initial_version, prompt_id=prompt.id)
 
     # Get version info
     versions = prompt_version_crud.get_versions(db, prompt.id)
-    latest_version = max([v.version_number for v in versions], default=0)
+    latest_version = get_latest_version_number(versions)
 
     return PromptResponse(
         id=prompt.id,
@@ -131,7 +173,7 @@ async def get_prompt_by_id(
 
     # Get version info
     versions = prompt_version_crud.get_versions(db, prompt.id)
-    latest_version = max([v.version_number for v in versions], default=0)
+    latest_version = get_latest_version_number(versions)
 
     return PromptResponse(
         id=prompt.id,
@@ -161,7 +203,7 @@ async def update_prompt(
 
     # Get version info
     versions = prompt_version_crud.get_versions(db, updated_prompt.id)
-    latest_version = max([v.version_number for v in versions], default=0)
+    latest_version = get_latest_version_number(versions)
 
     return PromptResponse(
         id=updated_prompt.id,
@@ -241,8 +283,8 @@ async def get_latest_prompt_version(
 @router.get("/prompts/{prompt_id}/versions/compare/detailed")
 async def compare_prompt_versions_detailed(
     prompt_id: str,
-    version_a: int = Query(..., description="First version number"),
-    version_b: int = Query(..., description="Second version number"),
+    version_a: str = Query(..., description="First version number"),
+    version_b: str = Query(..., description="Second version number"),
     include_diff: bool = Query(True, description="Include detailed diff"),
     db: Session = Depends(get_db)
 ):
@@ -263,8 +305,8 @@ async def compare_prompt_versions_detailed(
 @router.get("/prompts/{prompt_id}/versions/compare")
 async def compare_prompt_versions(
     prompt_id: str,
-    version_a: int = Query(..., description="First version number"),
-    version_b: int = Query(..., description="Second version number"),
+    version_a: str = Query(..., description="First version number"),
+    version_b: str = Query(..., description="Second version number"),
     db: Session = Depends(get_db)
 ):
     """Compare two versions of a prompt."""
@@ -329,8 +371,12 @@ async def create_prompt_version(
     prompt = prompt_crud.get(db=db, prompt_id=prompt_id)
     if not prompt:
         raise HTTPException(status_code=404, detail="Prompt not found")
-    
-    version = prompt_version_crud.create(db=db, obj_in=version_data, prompt_id=prompt_id)
+
+    try:
+        version = prompt_version_crud.create(db=db, obj_in=version_data, prompt_id=prompt_id)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
     return PromptVersionResponse(
         id=version.id,
         prompt_id=version.prompt_id,
@@ -413,7 +459,7 @@ async def delete_prompt_version(
 @router.post("/prompts/{prompt_id}/versions/revert")
 async def revert_prompt_to_version(
     prompt_id: str,
-    version_number: int,
+    version_number: str,
     change_notes: Optional[str] = None,
     db: Session = Depends(get_db)
 ):
@@ -1041,3 +1087,57 @@ async def test_llm_connection(
             "error": str(e),
             "provider": provider
         }
+
+
+# Maintenance endpoints
+@router.post("/maintenance/create-initial-versions")
+async def create_initial_versions_for_all_prompts(db: Session = Depends(get_db)):
+    """
+    Create version 1.0 for all prompts that don't have any versions yet.
+    This is a maintenance endpoint for prompts created before auto-version feature.
+    """
+    from src.models.prompt import Prompt
+
+    try:
+        # Get all prompts
+        prompts = db.query(Prompt).all()
+
+        created_count = 0
+        skipped_count = 0
+        errors = []
+
+        for prompt in prompts:
+            # Check if prompt has any versions
+            existing_versions = prompt_version_crud.get_versions(db, prompt.id)
+
+            if existing_versions:
+                skipped_count += 1
+                continue
+
+            # Create initial version 1.0
+            try:
+                from src.schemas.prompt_version import PromptVersionCreate
+                initial_version = PromptVersionCreate(
+                    content=prompt.content,
+                    change_notes="Initial version (auto-created)",
+                    version_number="1.0"
+                )
+                prompt_version_crud.create(db=db, obj_in=initial_version, prompt_id=prompt.id)
+                created_count += 1
+            except Exception as e:
+                errors.append({
+                    "prompt_id": prompt.id,
+                    "prompt_title": prompt.title,
+                    "error": str(e)
+                })
+
+        return {
+            "success": True,
+            "total_prompts": len(prompts),
+            "created": created_count,
+            "skipped": skipped_count,
+            "errors": errors
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to create initial versions: {str(e)}")

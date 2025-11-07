@@ -17,13 +17,43 @@ class PromptVersionCRUD:
         return db.query(PromptVersion).filter(PromptVersion.id == version_id).first()
 
     def get_versions(self, db: Session, prompt_id: str) -> List[PromptVersion]:
-        """Get all versions for a specific prompt."""
-        return (
+        """Get all versions for a specific prompt.
+        Sorted by version number descending (numerically, not lexically).
+        """
+        versions = (
             db.query(PromptVersion)
             .filter(PromptVersion.prompt_id == prompt_id)
-            .order_by(PromptVersion.version_number.desc())
             .all()
         )
+
+        if not versions:
+            return []
+
+        # Sort by version number numerically (handles both int and str)
+        def version_sort_key(v):
+            try:
+                version_value = v.version_number
+                # Handle None
+                if version_value is None:
+                    return 0.0
+                # Handle both integer (old) and string (new) version numbers
+                if isinstance(version_value, int):
+                    return float(version_value)
+                elif isinstance(version_value, str):
+                    return float(version_value)
+                else:
+                    return 0.0
+            except (ValueError, TypeError, AttributeError) as e:
+                # Log the error for debugging
+                print(f"Error sorting version {v.id}: {e}, version_number={version_value}")
+                return 0.0
+
+        try:
+            return sorted(versions, key=version_sort_key, reverse=True)
+        except Exception as e:
+            # Fallback: return unsorted if sorting fails
+            print(f"Failed to sort versions: {e}")
+            return versions
 
     def get_by_prompt(
         self,
@@ -33,30 +63,97 @@ class PromptVersionCRUD:
         skip: int = 0,
         limit: int = 20
     ) -> List[PromptVersion]:
-        """Get versions for a specific prompt."""
-        return (
+        """Get versions for a specific prompt.
+        Sorted by version number descending (numerically, not lexically).
+        """
+        versions = (
             db.query(PromptVersion)
             .filter(PromptVersion.prompt_id == prompt_id)
-            .order_by(PromptVersion.version_number.desc())
-            .offset(skip)
-            .limit(limit)
             .all()
         )
 
-    def get_next_version_number(self, db: Session, prompt_id: str) -> int:
-        """Get the next version number for a prompt."""
-        max_version = (
-            db.query(PromptVersion)
+        if not versions:
+            return []
+
+        # Sort by version number numerically (handles both int and str)
+        def version_sort_key(v):
+            try:
+                version_value = v.version_number
+                # Handle None
+                if version_value is None:
+                    return 0.0
+                # Handle both integer (old) and string (new) version numbers
+                if isinstance(version_value, int):
+                    return float(version_value)
+                elif isinstance(version_value, str):
+                    return float(version_value)
+                else:
+                    return 0.0
+            except (ValueError, TypeError, AttributeError) as e:
+                # Log the error for debugging
+                print(f"Error sorting version {v.id}: {e}, version_number={version_value}")
+                return 0.0
+
+        try:
+            sorted_versions = sorted(versions, key=version_sort_key, reverse=True)
+            # Apply skip and limit
+            return sorted_versions[skip:skip + limit]
+        except Exception as e:
+            # Fallback: return unsorted if sorting fails
+            print(f"Failed to sort versions: {e}")
+            return versions[skip:skip + limit]
+
+    def get_next_version_number(self, db: Session, prompt_id: str) -> str:
+        """Get the next version number for a prompt.
+        Handles both integer (old DB schema) and string (new DB schema) version numbers.
+        """
+        versions = (
+            db.query(PromptVersion.version_number)
             .filter(PromptVersion.prompt_id == prompt_id)
-            .order_by(PromptVersion.version_number.desc())
-            .first()
+            .all()
         )
-        return (max_version.version_number + 1) if max_version else 1
+
+        if not versions:
+            return "1.0"
+
+        # Parse all version numbers and find the maximum
+        max_num = 0.0
+        for (version_value,) in versions:
+            try:
+                # Handle both integer (old) and string (new) version numbers
+                if isinstance(version_value, int):
+                    num = float(version_value)
+                else:
+                    num = float(version_value)
+
+                if num > max_num:
+                    max_num = num
+            except (ValueError, TypeError):
+                # If not a valid number, skip it
+                continue
+
+        # Increment by 1.0
+        next_version = max_num + 1.0
+        # Format: if it's a whole number, return "X.0", otherwise keep decimal
+        if next_version.is_integer():
+            return f"{int(next_version)}.0"
+        else:
+            return str(next_version)
 
     def create(self, db: Session, *, obj_in: PromptVersionCreate, prompt_id: str) -> PromptVersion:
         """Create a new prompt version."""
-        version_number = self.get_next_version_number(db, prompt_id)
-        
+        # Use provided version number or auto-generate
+        version_number = obj_in.version_number if obj_in.version_number is not None else self.get_next_version_number(db, prompt_id)
+
+        # Check if version number already exists
+        existing = db.query(PromptVersion).filter(
+            PromptVersion.prompt_id == prompt_id,
+            PromptVersion.version_number == version_number
+        ).first()
+
+        if existing:
+            raise ValueError(f"Version {version_number} already exists for this prompt")
+
         db_obj = PromptVersion(
             prompt_id=prompt_id,
             version_number=version_number,
@@ -100,8 +197,8 @@ class PromptVersionCRUD:
         db: Session,
         *,
         prompt_id: str,
-        version_a: int,
-        version_b: int
+        version_a: str,
+        version_b: str
     ) -> Optional[dict]:
         """Compare two versions of a prompt."""
         version_a_obj = (

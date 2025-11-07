@@ -33,7 +33,7 @@ class PromptResponse(PromptBase):
     id: str
     created_at: datetime
     updated_at: datetime
-    latest_version: int = 0
+    latest_version: str = "0.0"  # Changed to string to support decimal versions
     total_versions: int = 0
 
     class Config:

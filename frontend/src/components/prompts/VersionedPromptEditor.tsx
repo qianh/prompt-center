@@ -8,13 +8,14 @@ import { PromptTester } from './PromptTester';
 
 interface VersionedPromptEditorProps {
   prompt: Prompt;
+  initialVersion?: PromptVersion;
   onSave: (prompt: Prompt) => void;
   onCancel: () => void;
 }
 
 interface SaveConfirmDialogProps {
-  currentVersion: number;
-  onConfirm: (createNew: boolean, changeNotes: string) => void;
+  currentVersion: string;
+  onConfirm: (createNew: boolean, changeNotes: string, customVersion?: string) => void;
   onCancel: () => void;
 }
 
@@ -25,6 +26,21 @@ const SaveConfirmDialog: React.FC<SaveConfirmDialogProps> = ({
 }) => {
   const [createNew, setCreateNew] = useState(true);
   const [changeNotes, setChangeNotes] = useState('');
+  const [useCustomVersion, setUseCustomVersion] = useState(false);
+
+  // Calculate next version: parse current as float, add 1.0, format
+  const getNextVersion = (current: string): string => {
+    try {
+      const num = parseFloat(current);
+      if (isNaN(num)) return "1.0";
+      const next = num + 1.0;
+      return next % 1 === 0 ? `${next}.0` : next.toString();
+    } catch {
+      return "1.0";
+    }
+  };
+
+  const [customVersion, setCustomVersion] = useState(getNextVersion(currentVersion));
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -34,7 +50,7 @@ const SaveConfirmDialog: React.FC<SaveConfirmDialogProps> = ({
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="text-sm text-gray-600">
-            Current version: <span className="font-semibold">v{currentVersion}.0</span>
+            Current version: <span className="font-semibold">v{currentVersion}</span>
           </div>
 
           {/* Update current version option */}
@@ -46,7 +62,7 @@ const SaveConfirmDialog: React.FC<SaveConfirmDialogProps> = ({
               className="mt-1"
             />
             <div>
-              <div className="font-medium">Update current version (v{currentVersion}.0)</div>
+              <div className="font-medium">Update current version (v{currentVersion})</div>
               <div className="text-sm text-gray-600">Overwrite existing version</div>
             </div>
           </label>
@@ -59,11 +75,45 @@ const SaveConfirmDialog: React.FC<SaveConfirmDialogProps> = ({
               onChange={() => setCreateNew(true)}
               className="mt-1"
             />
-            <div>
-              <div className="font-medium">Create new version (v{currentVersion + 1}.0)</div>
-              <div className="text-sm text-gray-600">Keep v{currentVersion}.0 as history</div>
+            <div className="flex-1">
+              <div className="font-medium">
+                Create new version (v{useCustomVersion ? customVersion : getNextVersion(currentVersion)})
+              </div>
+              <div className="text-sm text-gray-600">Keep v{currentVersion} as history</div>
             </div>
           </label>
+
+          {/* Custom version number (only for new version) */}
+          {createNew && (
+            <div className="ml-6 space-y-3">
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={useCustomVersion}
+                  onChange={(e) => setUseCustomVersion(e.target.checked)}
+                />
+                <span className="text-sm font-medium">Use custom version number</span>
+              </label>
+
+              {useCustomVersion && (
+                <div>
+                  <label className="block text-sm font-medium mb-2">
+                    Version Number
+                  </label>
+                  <Input
+                    type="text"
+                    value={customVersion}
+                    onChange={(e) => setCustomVersion(e.target.value)}
+                    placeholder="e.g., 2.5, 3.0, 10.1"
+                    className="w-40"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Will be saved as v{customVersion}
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Change notes (only for new version) */}
           {createNew && (
@@ -85,7 +135,7 @@ const SaveConfirmDialog: React.FC<SaveConfirmDialogProps> = ({
             <Button variant="outline" onClick={onCancel}>
               Cancel
             </Button>
-            <Button onClick={() => onConfirm(createNew, changeNotes)}>
+            <Button onClick={() => onConfirm(createNew, changeNotes, useCustomVersion ? customVersion : undefined)}>
               Save
             </Button>
           </div>
@@ -97,6 +147,7 @@ const SaveConfirmDialog: React.FC<SaveConfirmDialogProps> = ({
 
 export const VersionedPromptEditor: React.FC<VersionedPromptEditorProps> = ({
   prompt,
+  initialVersion,
   onSave,
   onCancel,
 }) => {
@@ -128,11 +179,18 @@ export const VersionedPromptEditor: React.FC<VersionedPromptEditorProps> = ({
     try {
       setVersionsLoading(true);
       const response = await promptVersionsApi.getVersions(prompt.id);
-      const versionList = response.items || [];
+      // Backend returns array directly, not wrapped in {items: []}
+      const versionList = Array.isArray(response) ? response : response.items || [];
       setVersions(versionList);
 
-      // Select latest version by default
-      if (versionList.length > 0) {
+      // If initialVersion is provided, use it; otherwise select latest version
+      if (initialVersion) {
+        setSelectedVersionId(initialVersion.id);
+        setFormData(prev => ({
+          ...prev,
+          content: initialVersion.content
+        }));
+      } else if (versionList.length > 0) {
         const latest = versionList[0]; // Assuming sorted by version desc
         setSelectedVersionId(latest.id);
         setFormData(prev => ({
@@ -159,7 +217,7 @@ export const VersionedPromptEditor: React.FC<VersionedPromptEditorProps> = ({
     setShowSaveDialog(true);
   };
 
-  const handleConfirmSave = async (createNew: boolean, changeNotes: string) => {
+  const handleConfirmSave = async (createNew: boolean, changeNotes: string, customVersion?: string) => {
     setLoading(true);
     setShowSaveDialog(false);
 
@@ -176,6 +234,7 @@ export const VersionedPromptEditor: React.FC<VersionedPromptEditorProps> = ({
         await promptVersionsApi.createVersion(prompt.id, {
           content: formData.content,
           change_notes: changeNotes,
+          version_number: customVersion,
         });
       } else {
         // Update current version
@@ -195,9 +254,11 @@ export const VersionedPromptEditor: React.FC<VersionedPromptEditorProps> = ({
       // Reload to get updated data
       await loadVersions();
       onSave(updatedPrompt);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to save prompt:', error);
-      alert('Failed to save changes');
+      const errorMessage = error.response?.data?.detail || 'Failed to save changes';
+      alert(errorMessage);
+      setShowSaveDialog(true); // Reopen dialog on error
     } finally {
       setLoading(false);
     }
@@ -267,7 +328,7 @@ export const VersionedPromptEditor: React.FC<VersionedPromptEditorProps> = ({
                         : 'bg-gray-100 text-gray-600 hover:bg-gray-200 border-gray-300'
                     } border`}
                   >
-                    v{version.version_number}.0
+                    v{version.version_number}
                     {version === versions[0] && (
                       <span className="ml-1 text-xs">(Latest)</span>
                     )}

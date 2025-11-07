@@ -55,7 +55,8 @@ export const NewComparisonForm: React.FC<NewComparisonFormProps> = ({
     if (promptId) {
       try {
         const response = await promptVersionsApi.getVersions(promptId);
-        setVersions(response.items || []);
+        // Backend returns array directly, not wrapped in {items: []}
+        setVersions(Array.isArray(response) ? response : response.items || []);
       } catch (error) {
         console.error('Failed to load versions:', error);
         setVersions([]);

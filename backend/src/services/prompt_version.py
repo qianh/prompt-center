@@ -91,8 +91,8 @@ class PromptVersionService:
         db: Session,
         *,
         prompt_id: str,
-        version_a: int,
-        version_b: int,
+        version_a: str,
+        version_b: str,
         include_diff: bool = True
     ) -> Dict[str, Any]:
         """Compare two versions with detailed analysis."""
@@ -170,7 +170,7 @@ class PromptVersionService:
         db: Session,
         *,
         prompt_id: str,
-        version_number: int,
+        version_number: str,
         change_notes: Optional[str] = None
     ) -> PromptVersion:
         """Revert prompt to a specific version."""
